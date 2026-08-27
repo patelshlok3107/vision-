@@ -1,0 +1,15 @@
+<svg viewBox="0 0 100 88" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="VISION">
+<style>
+  .v { fill: #0a0a0a; }
+  .dot { fill: #0a0a0a; }
+  .hl { fill: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    .v { fill: #ffffff; }
+    .dot { fill: #ffffff; }
+    .hl { fill: #0a0a0a; }
+  }
+</style>
+<path class="v" d="M 9 10 C 6 6, 12 3, 17 6.5 L 42.5 66.5 C 44.2 70.2, 46.5 73.2, 50 73.2 C 53.5 73.2, 55.8 70.2, 57.5 66.5 L 83 6.5 C 88 3, 94 6, 91 10 L 90.5 14.5 L 62 84.2 C 58.5 91.5, 53.2 88.8, 50 88.8 C 46.8 88.8, 41.5 91.5, 38 84.2 L 9.5 14.5 Z"/>
+<circle class="dot" cx="50" cy="38.5" r="11.5"/>
+<circle class="hl" cx="46.2" cy="34.8" r="4.2"/>
+</svg>

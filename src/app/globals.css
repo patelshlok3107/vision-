@@ -1,26 +1,308 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --bg: #ffffff;
+  --surface: #f6f6f7;
+  --surface-2: #eeeeef;
+  --surface-3: #e6e6e7;
+  --surface-hover: #e9e9eb;
+  --text: #0a0a0a;
+  --text-secondary: #3a3a3a;
+  --muted: #6b7280;
+  --border: rgba(0,0,0,0.10);
+  --border-strong: rgba(0,0,0,0.16);
+  --glass: rgba(0,0,0,0.04);
+  --accent: #0a0a0a;
+  --accent-soft: rgba(0,0,0,0.08);
+  --input-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --button-bg: #0a0a0a;
+  --button-text: #ffffff;
+  --danger: #e53e3e;
+  --success: #0a7a3a;
+  --warning: #b7791f;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --shadow-soft: 0 4px 14px rgba(0,0,0,.08);
+  --shadow-large: 0 20px 60px rgba(0,0,0,.12);
+  --transition: 0.2s ease;
+}
+
+/* Dark theme — default for VISION, also via .dark class and system preference */
+.dark {
+  --bg: #000000;
+  --surface: #0b0b0c;
+  --surface-2: #111113;
+  --surface-3: #18181a;
+  --surface-hover: #1a1a1e;
+  --text: #ffffff;
+  --text-secondary: #c8c8c8;
+  --muted: #8e8e8e;
+  --border: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
+  --glass: rgba(255,255,255,0.055);
+  --accent: #ffffff;
+  --accent-soft: rgba(255,255,255,0.12);
+  --input-bg: #111113;
+  --sidebar-bg: #000000;
+  --button-bg: #ffffff;
+  --button-text: #000000;
+  --danger: #ff5c5c;
+  --success: #8ff0b0;
+  --warning: #ffd36a;
+  --shadow-soft: 0 4px 14px rgba(0,0,0,.16);
+  --shadow-large: 0 20px 60px rgba(0,0,0,.45);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.light):not(.dark) {
+    --bg: #000000;
+    --surface: #0b0b0c;
+    --surface-2: #111113;
+    --surface-3: #18181a;
+    --surface-hover: #1a1a1e;
+    --text: #ffffff;
+    --text-secondary: #c8c8c8;
+    --muted: #8e8e8e;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --glass: rgba(255,255,255,0.055);
+    --accent: #ffffff;
+    --accent-soft: rgba(255,255,255,0.12);
+    --input-bg: #111113;
+    --sidebar-bg: #000000;
+    --button-bg: #ffffff;
+    --button-text: #000000;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Smooth theme transition — 200ms, no flash, no layout shift */
+html, body, .app-shell, .sidebar, .sidebar-nav, .chat-area, .chat-header, .messages-container, .composer-wrapper, .composer {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
+
+/* Keyboard-aware — set via JS visualViewport */
+:root { --keyboard-height: 0px; }
+@media (max-width: 768px) {
+  .app-shell {
+    height: calc(100dvh - var(--keyboard-height));
+    height: calc(100dvh - var(--keyboard-height));
+  }
+  .chat-area {
+    height: calc(100dvh - var(--keyboard-height));
+  }
+  .composer-wrapper {
+    padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--keyboard-height));
+  }
+  /* Ensure messages don't get hidden behind composer when keyboard is up */
+  .messages-container {
+    padding-bottom: 8px;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 7%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 7%;
+    --muted-foreground: 0 0% 56%;
+    --accent: 0 0% 7%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 100% / 0.10;
+    --input: 0 0% 100% / 0.10;
+    --ring: 0 0% 100%;
+    --radius: 1rem;
+  }
+}
+
+@layer base {
+  * { border-color: hsl(var(--border)); }
+  html { scroll-behavior: smooth; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  body {
+    color: var(--text);
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+  #__next, .app-root {
+    width: 100%;
+    height: 100%;
+  }
+  /* App shell per spec §3/31 — theme-aware */
+  .app-shell {
+    height: 100dvh;
+    width: 100%;
+    display: flex;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .sidebar {
+    width: 280px;
+    height: 100dvh;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--sidebar-bg);
+  }
+  .sidebar-header {
+    flex: 0 0 auto;
+  }
+  .sidebar-history {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .sidebar-nav {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--border);
+  }
+  .chat-area {
+    flex: 1;
+    min-width: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .chat-header {
+    flex: 0 0 auto;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .messages-container {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .chat-content {
+    width: min(100%, 1100px);
+    margin: 0 auto;
+    padding: 32px 40px;
+  }
+  @media (max-width: 768px) {
+    .chat-content { padding: 24px 16px; }
+  }
+  .composer-wrapper {
+    flex: 0 0 auto;
+    padding: 18px 24px 24px;
+    background: var(--bg);
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .composer {
+    width: min(100%, 850px);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 10px 12px 10px 16px;
+  }
+  .composer:focus-within {
+    border-color: var(--border-strong);
+  }
+  .composer input::placeholder {
+    color: var(--muted);
+    opacity: 0.6;
+  }
+  .composer input {
+    color: var(--text);
+  }
+  .message-list {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 14px;
+  }
+  .empty-chat {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+  }
+}
+
+/* Display font for VISION wordmark / heroic */
+.font-display {
+  font-family: "Geist Mono", ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+}
+.glass-strong {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-strong);
+}
+.glow {
+  box-shadow: 0 0 40px rgba(255,255,255,0.08), 0 0 80px rgba(255,255,255,0.04);
+}
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--muted); }
+
+/* Custom scrollbar — theme-aware */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+::-webkit-scrollbar-track { background: transparent; }

@@ -1,14 +1,14 @@
 import type { NextConfig } from "next";
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim();
 
 const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   async rewrites() {
-    // Proxy /api to backend in production (Vercel) when NEXT_PUBLIC_API_URL is set
-    // If backend is on same host, rewrites still work; else we use env URL client-side
-    // This ensures /api/* works even when frontend and backend are separate
+    // Only proxy if backend URL is set. On Vercel without backend, skip rewrites so /api/* falls through (frontend handles via apiUrl("") fallback).
+    // Local dev uses http://127.0.0.1:8000 automatically via apiUrl() client-side, no rewrite needed when apiBase is empty.
+    if (!apiBase) return [];
     return [
       {
         source: "/api/:path*",

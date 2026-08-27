@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/api";
 
-const API = "http://127.0.0.1:8000";
 function authHeader(): Record<string,string> {
   const t = typeof window!=="undefined" ? localStorage.getItem("accessToken")||"" : "";
   return t ? { Authorization: `Bearer ${t}` } : {};
@@ -18,7 +18,7 @@ export default function WorkspacePanel({open, onClose}: {open:boolean, onClose:(
 
   const load = async(p=path)=>{
     try{
-      const res = await fetch(`${API}/api/workspace/list/?path=${encodeURIComponent(p)}`, {headers: authHeader()});
+      const res = await fetch(apiUrl(`/api/workspace/list/?path=${encodeURIComponent(p)}`), {headers: authHeader()});
       const data = await res.json();
       if(data.entries) setEntries(data.entries);
     }catch{}
@@ -27,7 +27,7 @@ export default function WorkspacePanel({open, onClose}: {open:boolean, onClose:(
 
   const read = async(f:string)=>{
     setSelected(f);
-    const res = await fetch(`${API}/api/workspace/read/?path=${encodeURIComponent(f)}`, {headers: authHeader()});
+    const res = await fetch(apiUrl(`/api/workspace/read/?path=${encodeURIComponent(f)}`), {headers: authHeader()});
     const d = await res.json();
     if(d.content) setFileContent(d.content);
     else setFileContent(JSON.stringify(d));
@@ -35,12 +35,12 @@ export default function WorkspacePanel({open, onClose}: {open:boolean, onClose:(
   const write = async()=>{
     if(!newFile) return;
     const p = path ? `${path}/${newFile}` : newFile;
-    await fetch(`${API}/api/workspace/write/`, {method:"POST", headers:{...authHeader(), "Content-Type":"application/json"}, body: JSON.stringify({path: p, content: newContent})});
+    await fetch(apiUrl("/api/workspace/write/"), {method:"POST", headers:{...authHeader(), "Content-Type":"application/json"}, body: JSON.stringify({path: p, content: newContent})});
     setNewFile(""); setNewContent(""); load();
   };
   const del = async(f:string)=>{
     if(!confirm(`Delete ${f}?`)) return;
-    await fetch(`${API}/api/workspace/delete/`, {method:"POST", headers:{...authHeader(), "Content-Type":"application/json"}, body: JSON.stringify({path: f})});
+    await fetch(apiUrl("/api/workspace/delete/"), {method:"POST", headers:{...authHeader(), "Content-Type":"application/json"}, body: JSON.stringify({path: f})});
     load();
   };
   if(!open) return null;

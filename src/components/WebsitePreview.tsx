@@ -145,7 +145,8 @@ export default function WebsitePreview({ html, css, js, onClose }: WebsitePrevie
             <iframe
               ref={iframeRef}
               title="Website Preview"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+              sandbox="allow-scripts allow-forms allow-modals"
+              referrerPolicy="no-referrer"
               className="w-full h-full border-none bg-white"
             />
           </div>

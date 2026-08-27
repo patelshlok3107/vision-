@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:8000";
+import { apiUrl } from "@/lib/api";
 function authHeader(): Record<string,string> {
   if (typeof window==="undefined") return {};
   const t = localStorage.getItem("accessToken") || localStorage.getItem("access") || "";
@@ -41,19 +41,16 @@ export function saveLocalSettings(s: Partial<AppSettings>) {
   const cur = getLocalSettings();
   const next = { ...cur, ...s };
   localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
-  // apply theme/font/reduce-motion side-effects
   applySettingsSideEffects(next);
   return next;
 }
 export function applySettingsSideEffects(s: AppSettings) {
   if (typeof document==="undefined") return;
-  // theme
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme = s.theme === "system" ? (prefersDark ? "dark" : "light") : s.theme;
   document.documentElement.classList.toggle("dark", theme==="dark");
   document.documentElement.classList.toggle("light", theme==="light");
   localStorage.setItem("vision-theme", s.theme === "system" ? (prefersDark?"dark":"light") : s.theme);
-  // font size
   document.documentElement.style.setProperty("--vision-font-scale", s.font_size==="small"?"0.9":s.font_size==="large"?"1.08":"1");
   document.documentElement.dataset.density = s.chat_density;
   if (s.reduce_motion) document.documentElement.style.setProperty("--transition","0s");
@@ -63,10 +60,9 @@ export async function fetchRemoteSettings(): Promise<AppSettings|null> {
   const t = typeof window!=="undefined" ? localStorage.getItem("accessToken") : null;
   if (!t) return null;
   try {
-    const res = await fetch(`${API}/api/auth/settings/`, { headers: authHeader() });
+    const res = await fetch(apiUrl("/api/auth/settings/"), { headers: authHeader() });
     if (!res.ok) return null;
     const remote = await res.json();
-    // merge remote over local
     const merged = { ...getLocalSettings(), ...remote };
     localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
     applySettingsSideEffects(merged);
@@ -77,7 +73,7 @@ export async function pushRemoteSettings(patch: Partial<AppSettings>): Promise<b
   const t = typeof window!=="undefined" ? localStorage.getItem("accessToken") : null;
   if (!t) { saveLocalSettings(patch); return true; }
   try {
-    const res = await fetch(`${API}/api/auth/settings/`, {
+    const res = await fetch(apiUrl("/api/auth/settings/"), {
       method:"PATCH", headers: { "Content-Type":"application/json", ...authHeader() },
       body: JSON.stringify(patch)
     });

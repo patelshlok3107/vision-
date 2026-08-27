@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { apiUrl } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
@@ -12,7 +13,7 @@ export default function AuthHeader() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(()=>{
     if(!isAuthenticated) return;
-    fetch("http://127.0.0.1:8000/api/auth/profile/",{headers:{Authorization:`Bearer ${localStorage.getItem("accessToken")||""}`}}).then(r=>r.json()).then(j=> setAvatar(j.avatar||null)).catch(()=>{});
+    fetch(apiUrl("/api/auth/profile/"),{headers:{Authorization:`Bearer ${localStorage.getItem("accessToken")||""}`}}).then(r=>r.json()).then(j=> setAvatar(j.avatar||null)).catch(()=>{});
   },[isAuthenticated]);
   useEffect(()=>{
     const h=(e:MouseEvent)=>{ if(ref.current && !ref.current.contains(e.target as any)) setOpen(false); };

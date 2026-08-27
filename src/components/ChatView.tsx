@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef, useCallback, useTransition } from "react";
+import { apiUrl } from "@/lib/api";
 import { unstable_batchedUpdates } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getMessages, streamChat, createConversation, uploadAttachments, attachmentUrl, type Message, type AttachmentOut, getGuestHistory, saveGuestHistory, appendGuestMessage } from "@/lib/conversations";
@@ -15,6 +16,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/providers/AuthProvider";
 import FeatureGateModal from "@/components/FeatureGateModal";
 import AuthHeader from "@/components/AuthHeader";
+import ConnectionStatus from "@/components/ConnectionStatus";
 
 const ALLOWED = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const MAX_IMAGES = 5;
@@ -155,6 +157,14 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   const streamPathRef = useRef<string | null>(null);
   const [featureGate, setFeatureGate] = useState<{ open: boolean; feature?: string }>({ open: false });
   const [showImportBanner, setShowImportBanner] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  useEffect(() => {
+    const upd = () => setIsOffline(!navigator.onLine);
+    upd();
+    window.addEventListener("online", upd);
+    window.addEventListener("offline", upd);
+    return () => { window.removeEventListener("online", upd); window.removeEventListener("offline", upd); };
+  }, []);
   // Check for guest import prompt after login
   useEffect(() => {
     if (isAuthenticated && !conversationId) {
@@ -185,14 +195,14 @@ export default function ChatView({ conversationId }: { conversationId?: string }
     if (now - _lastHealthFetch < HEALTH_CACHE_MS && _cachedHealth !== null) {
       setHealth(_cachedHealth);
     } else {
-      fetch('http://127.0.0.1:8000/api/ai/health/').then(r => r.json()).then(d => { _cachedHealth = d; _lastHealthFetch = Date.now(); setHealth(d); }).catch(() => { });
+      fetch(apiUrl("/api/ai/health/")).then(r => r.json()).then(d => { _cachedHealth = d; _lastHealthFetch = Date.now(); setHealth(d); }).catch(() => { });
     }
     const tk = localStorage.getItem("accessToken");
     if (tk) {
       if (now - _lastRouterFetch < HEALTH_CACHE_MS && _cachedRouter !== null) {
         setRouterHealth(_cachedRouter);
       } else {
-        fetch('http://127.0.0.1:8000/api/ai/router/', { headers: { Authorization: `Bearer ${tk}` } }).then(r => r.json()).then(d => { _cachedRouter = d; _lastRouterFetch = Date.now(); setRouterHealth(d); }).catch(() => { });
+        fetch(apiUrl("/api/ai/router/"), { headers: { Authorization: `Bearer ${tk}` } }).then(r => r.json()).then(d => { _cachedRouter = d; _lastRouterFetch = Date.now(); setRouterHealth(d); }).catch(() => { });
       }
     }
   }, []);
@@ -464,7 +474,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
         if (gh.length) formData.append("guest_history", JSON.stringify(gh.slice(-6)));
         pendingSnapshot.forEach(f => formData.append("images", f.file));
         // Custom fetch for guest multipart
-        const guestRes = await fetch("http://127.0.0.1:8000/api/ai/chat/", {
+        const guestRes = await fetch(apiUrl("/api/ai/chat/"), {
           method: "POST",
           body: formData,
           signal: abortRef.current.signal,
@@ -724,6 +734,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
           </div>
           <div className="flex items-center gap-2"><AuthHeader /><ThemeToggle /></div>
         </div>
+        {isOffline && <div className="mx-4 mt-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-200 text-center">You're offline. The app shell is available, but AI responses need a connection.</div>}
         {isGuest && (
           <div className="mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs flex justify-between items-center" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--muted)" }}>
             <span>Guest mode — <span className="font-medium" style={{ color: "var(--text)" }}>basic chat only</span>. Conversations are not saved.</span>
@@ -745,7 +756,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
                   const conv = await createConversation(firstUser.slice(0, 60));
                   // Save messages sequentially (user/assistant)
                   for (const m of gh) {
-                    await fetch(`http://127.0.0.1:8000/api/conversations/${conv.id}/messages/`, {
+                    await fetch(apiUrl(`/api/conversations/${conv.id}/messages/`), {
                       method: "POST",
                       headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
                       body: JSON.stringify({ role: m.role, content: m.content })
@@ -845,6 +856,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
         </div>
         <div className="flex items-center gap-2"><AuthHeader /><ThemeToggle /></div>
       </div>
+      {isOffline && <div className="mx-4 mt-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-200 text-center">You're offline. The app shell is available, but AI responses need a connection.</div>}
       {isGuest && (
         <div className="mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs flex justify-between items-center" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--muted)" }}>
           <span>Guest mode — <span className="font-medium" style={{ color: "var(--text)" }}>basic chat only</span>. Conversations are not saved.</span>
@@ -865,7 +877,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
                 const firstUser = gh.find(m => m.role === "user")?.content || "Imported conversation";
                 const conv = await createConversation(firstUser.slice(0, 60));
                 for (const m of gh) {
-                  await fetch(`http://127.0.0.1:8000/api/conversations/${conv.id}/messages/`, {
+                  await fetch(apiUrl(`/api/conversations/${conv.id}/messages/`), {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` },
                     body: JSON.stringify({ role: m.role, content: m.content })

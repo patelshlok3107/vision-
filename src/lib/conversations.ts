@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:8000";
+import { apiUrl } from "@/lib/api";
 
 function authHeader(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -43,13 +43,13 @@ export async function listConversations(opts?: { include_archived?: boolean; lim
   if (opts?.include_archived) qs.set("include_archived", "true");
   if (opts?.limit) qs.set("limit", String(opts.limit));
   if (opts?.offset) qs.set("offset", String(opts.offset));
-  const res = await fetch(`${API}/api/conversations/?${qs.toString()}`, { headers: authHeader() });
+  const res = await fetch(apiUrl(`/api/conversations/?${qs.toString()}`), { headers: authHeader() });
   if (!res.ok) throw new Error("Failed to list conversations");
   return (await res.json()) as Conversation[];
 }
 
 export async function createConversation(title?: string, first_message?: string) {
-  const res = await fetch(`${API}/api/conversations/`, {
+  const res = await fetch(apiUrl("/api/conversations/"), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify({ title, first_message }),
@@ -59,18 +59,18 @@ export async function createConversation(title?: string, first_message?: string)
 }
 
 export async function getConversation(id: string) {
-  const res = await fetch(`${API}/api/conversations/${id}/`, { headers: authHeader() });
+  const res = await fetch(apiUrl(`/api/conversations/${id}/`), { headers: authHeader() });
   if (!res.ok) throw new Error("Not found");
   return (await res.json()) as Conversation;
 }
 
 export async function deleteConversation(id: string) {
-  const res = await fetch(`${API}/api/conversations/${id}/`, { method: "DELETE", headers: authHeader() });
+  const res = await fetch(apiUrl(`/api/conversations/${id}/`), { method: "DELETE", headers: authHeader() });
   if (!res.ok) throw new Error("Delete failed");
 }
 
 export async function archiveConversation(id: string, is_archived?: boolean) {
-  const res = await fetch(`${API}/api/conversations/${id}/archive/`, {
+  const res = await fetch(apiUrl(`/api/conversations/${id}/archive/`), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify(is_archived !== undefined ? { is_archived } : {}),
@@ -80,7 +80,7 @@ export async function archiveConversation(id: string, is_archived?: boolean) {
 }
 
 export async function renameConversation(id: string, title: string) {
-  const res = await fetch(`${API}/api/conversations/${id}/rename/`, {
+  const res = await fetch(apiUrl(`/api/conversations/${id}/rename/`), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify({ title }),
@@ -90,13 +90,13 @@ export async function renameConversation(id: string, title: string) {
 }
 
 export async function searchConversations(q: string) {
-  const res = await fetch(`${API}/api/conversations/search/?q=${encodeURIComponent(q)}`, { headers: authHeader() });
+  const res = await fetch(apiUrl(`/api/conversations/search/?q=${encodeURIComponent(q)}`), { headers: authHeader() });
   if (!res.ok) return [];
   return (await res.json()) as Conversation[];
 }
 
 export async function getMessages(conversationId: string, limit = 50, offset = 0) {
-  const res = await fetch(`${API}/api/conversations/${conversationId}/messages/?limit=${limit}&offset=${offset}`, {
+  const res = await fetch(apiUrl(`/api/conversations/${conversationId}/messages/?limit=${limit}&offset=${offset}`), {
     headers: authHeader(),
   });
   if (!res.ok) throw new Error("Failed to load messages");
@@ -107,7 +107,7 @@ export async function uploadAttachments(conversationId: string, files: File[]) {
   const fd = new FormData();
   files.forEach(f => fd.append("images", f));
   const token = (typeof window !== "undefined" ? localStorage.getItem("accessToken") || localStorage.getItem("access") || "" : "");
-  const res = await fetch(`${API}/api/conversations/${conversationId}/attachments/`, {
+  const res = await fetch(apiUrl(`/api/conversations/${conversationId}/attachments/`), {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,
@@ -121,7 +121,8 @@ export async function uploadAttachments(conversationId: string, files: File[]) {
 
 export function attachmentUrl(url: string) {
   if (url.startsWith("http")) return url;
-  return `${API}${url}`;
+  const base = apiUrl("");
+  return base ? `${base}${url}` : url;
 }
 
 // Guest history helpers - session storage for guest chat
@@ -153,7 +154,6 @@ export async function streamChat(message: string, conversation_id: string | null
   const isGuest = typeof window !== "undefined" && !localStorage.getItem("accessToken") && !localStorage.getItem("access");
   const payload: any = { message, conversation_id, mode: opts?.mode || "auto", memory_enabled: opts?.memory_enabled ?? true };
   if (attachment_ids && attachment_ids.length) payload.attachment_ids = attachment_ids;
-  // Include guest history for ephemeral context
   if (isGuest) {
     const gh = getGuestHistory();
     if (gh.length) payload.guest_history = gh.slice(-6);
@@ -162,7 +162,7 @@ export async function streamChat(message: string, conversation_id: string | null
   const headers: Record<string,string> = { "Content-Type": "application/json" };
   const ah = authHeader();
   if (ah.Authorization) headers["Authorization"] = ah.Authorization;
-  const res = await fetch(`${API}/api/ai/chat/`, {
+  const res = await fetch(apiUrl("/api/ai/chat/"), {
     method: "POST",
     headers,
     body: JSON.stringify(payload),
@@ -200,15 +200,7 @@ export async function streamChat(message: string, conversation_id: string | null
       }
       else if (j.type === "token") {
         const tok = j.content || "";
-        if (tok) {
-          // ZERO buffering for ultra_fast and simple paths — instant paint
-          // For heavy/agent, batch tiny chunks (<=1 char) to avoid DOM thrash
-          if (streamMode === "ultra_fast" || streamMode === "simple" || tok.length > 1) {
-            onToken(tok);
-          } else {
-            onToken(tok);
-          }
-        }
+        if (tok) onToken(tok);
       }
       else if (j.type === "status" && onStatus) onStatus(j.content);
       else if (j.type === "agent_step" && opts?.onAgentStep) opts.onAgentStep(j.content);

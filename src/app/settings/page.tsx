@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { apiUrl } from "@/lib/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
@@ -97,17 +98,17 @@ export default function SettingsPage(){
     applySettingsSideEffects(local);
     fetchRemoteSettings().then(r=> { if(r) setSettings(r); });
     // health
-    fetch("http://127.0.0.1:8000/api/ai/health/").then(r=>r.json()).then(setHealth).catch(()=>{});
+    fetch(apiUrl("/api/ai/health/")).then(r=>r.json()).then(setHealth).catch(()=>{});
     const t = localStorage.getItem("accessToken");
     const h:any = t?{Authorization:`Bearer ${t}`}:undefined;
-    fetch("http://127.0.0.1:8000/api/ai/settings/",{headers:h}).then(r=>r.json()).then(setAiCfg).catch(()=>{});
-    fetch("http://127.0.0.1:8000/api/ai/performance/",{headers:h}).then(r=>r.json()).then(setPerf).catch(()=>{});
-    fetch("http://127.0.0.1:8000/api/ai/usage/",{headers:h}).then(r=>r.json()).then(setUsage).catch(()=>{});
+    fetch(apiUrl("/api/ai/settings/"),{headers:h}).then(r=>r.json()).then(setAiCfg).catch(()=>{});
+    fetch(apiUrl("/api/ai/performance/"),{headers:h}).then(r=>r.json()).then(setPerf).catch(()=>{});
+    fetch(apiUrl("/api/ai/usage/"),{headers:h}).then(r=>r.json()).then(setUsage).catch(()=>{});
     // models list
-    fetch("http://127.0.0.1:8000/api/ai/health/",{headers:h}).then(r=>r.json()).then(()=> {
+    fetch(apiUrl("/api/ai/health/"),{headers:h}).then(r=>r.json()).then(()=> {
       // get models via tags
-      const base = aiCfg?.ollama_url || "http://127.0.0.1:8000";
-      fetch("http://127.0.0.1:8000/api/ai/settings/",{headers:h}).then(r=>r.json()).then(j=>{
+      const base = aiCfg?.ollama_url || apiUrl("");
+      fetch(apiUrl("/api/ai/settings/"),{headers:h}).then(r=>r.json()).then(j=>{
         // fallback: use health models if available
       }).catch(()=>{});
     }).catch(()=>{});
@@ -117,7 +118,7 @@ export default function SettingsPage(){
     if (localStorage.getItem("accessToken")) {
       setMemLoading(true);
       listMemories().then(setMemories).catch(()=>{}).finally(()=> setMemLoading(false));
-      fetch("http://127.0.0.1:8000/api/auth/data/stats/",{headers:h}).then(r=>r.json()).then(setStats).catch(()=>{});
+      fetch(apiUrl("/api/auth/data/stats/"),{headers:h}).then(r=>r.json()).then(setStats).catch(()=>{});
     }
   },[]);
 
@@ -276,14 +277,14 @@ export default function SettingsPage(){
         </div>
         <div className="flex gap-2 mt-4">
           <button onClick={()=>{
-            fetch("http://127.0.0.1:8000/api/ai/health/").then(r=>r.json()).then(setHealth).catch(()=>{});
-            fetch("http://127.0.0.1:8000/api/ai/settings/",{headers: localStorage.getItem("accessToken")?{Authorization:`Bearer ${localStorage.getItem("accessToken")}`}:undefined}).then(r=>r.json()).then(setAiCfg).catch(()=>{});
+            fetch(apiUrl("/api/ai/health/")).then(r=>r.json()).then(setHealth).catch(()=>{});
+            fetch(apiUrl("/api/ai/settings/"),{headers: localStorage.getItem("accessToken")?{Authorization:`Bearer ${localStorage.getItem("accessToken")}`}:undefined}).then(r=>r.json()).then(setAiCfg).catch(()=>{});
           }} className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Refresh Models</button>
           <button onClick={async()=>{
             setTesting(true); setTestRes(null);
             try{
               const t=localStorage.getItem("accessToken");
-              const r=await fetch("http://127.0.0.1:8000/api/ai/vision/test/",{method:"POST", headers: t?{Authorization:`Bearer ${t}`}:{}});
+              const r=await fetch(apiUrl("/api/ai/vision/test/"),{method:"POST", headers: t?{Authorization:`Bearer ${t}`}:{}});
               const j=await r.json(); setTestRes(j);
             }catch(e:any){ setTestRes({success:false, error:String(e)}); }
             setTesting(false);
@@ -377,10 +378,12 @@ export default function SettingsPage(){
         <Row label="Research completed"><Switch checked={settings.notif_research_complete} onChange={v=> update({notif_research_complete:v})} /></Row>
         <Row label="System notifications"><Switch checked={settings.notif_system} onChange={v=> update({notif_system:v})} /></Row>
         <Row label="Email notifications"><Switch checked={settings.notif_email} onChange={v=> update({notif_email:v})} /></Row>
-        <div className="pt-4">
-          {notifPerm==="denied" && <div className="rounded-xl border px-4 py-3 text-xs" style={{background:"var(--bg)", borderColor:"var(--border)", color:"var(--muted)"}}>Notifications are currently blocked. <button onClick={async()=>{ try{ const p=await Notification.requestPermission(); setNotifPerm(p);}catch{}}} className="ml-2 underline" style={{color:"var(--text)"}}>Enable Notifications</button></div>}
-          {notifPerm==="granted" && <div className="text-xs" style={{color:"var(--success)"}}>● Notifications enabled</div>}
-          {notifPerm==="default" && <button onClick={async()=>{ try{ const p=await Notification.requestPermission(); setNotifPerm(p);}catch{}}} className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Enable Notifications</button>}
+        <div className="pt-4 space-y-3">
+          <div className="text-xs font-medium" style={{color:"var(--text)"}}>Browser & Push Notifications</div>
+          {notifPerm==="denied" && <div className="rounded-xl border px-4 py-3 text-xs" style={{background:"var(--bg)", borderColor:"var(--border)", color:"var(--muted)"}}>Notifications are blocked by your browser. Open browser settings to enable them.</div>}
+          {notifPerm==="granted" && <div className="text-xs flex items-center gap-2" style={{color:"var(--success)"}}>● Notifications enabled <button onClick={async()=>{ const { showLocalNotification } = await import("@/lib/push"); await showLocalNotification("VISION","Test notification — you're all set!");}} className="ml-2 px-3 py-1 rounded-full border text-xs" style={{borderColor:"var(--border)", color:"var(--text)"}}>Send test</button> <button onClick={async()=>{ const { unsubscribePush } = await import("@/lib/push"); await unsubscribePush(); setNotifPerm(Notification.permission);}} className="px-3 py-1 rounded-full border text-xs" style={{borderColor:"var(--border)", color:"var(--muted)"}}>Disable</button></div>}
+          {notifPerm==="default" && <button onClick={async()=>{ try{ const p=await Notification.requestPermission(); setNotifPerm(p); if(p==="granted"){ const { subscribePush } = await import("@/lib/push"); await subscribePush(); } }catch{}}} className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Enable Notifications</button>}
+          <div className="text-xs" style={{color:"var(--muted)"}}>VISION will ask once. We never spam — only AI task completions, long-running generations, or important account updates. You can disable anytime here or in browser settings.</div>
         </div>
       </Section>
     </div>
@@ -419,7 +422,7 @@ export default function SettingsPage(){
           <button onClick={async()=>{
             if(!confirm("Delete all conversations?\nThis action cannot be undone.")) return;
             const t=localStorage.getItem("accessToken");
-            const res=await fetch("http://127.0.0.1:8000/api/auth/data/clear-history/",{method:"POST", headers: t?{Authorization:`Bearer ${t}`}:{}});
+            const res=await fetch(apiUrl("/api/auth/data/clear-history/"),{method:"POST", headers: t?{Authorization:`Bearer ${t}`}:{}});
             if(res.ok){ alert("Deleted"); setStats((s:any)=> ({...s, conversations:0})); } else alert("Failed");
           }} className="w-full py-2.5 rounded-full text-sm border" style={{borderColor:"rgba(255,60,60,0.25)", color:"#ff5c5c"}}>Delete all chats</button>
           <button onClick={async()=>{ if(!confirm("Clear all memories? This will delete every saved memory.")) return; await clearMemories(); setMemories([]); }} className="w-full py-2.5 rounded-full text-sm border" style={{borderColor:"rgba(255,60,60,0.25)", color:"#ff5c5c"}}>Clear Memory</button>
@@ -435,7 +438,7 @@ export default function SettingsPage(){
               if(!pwd) return;
               if(!confirm("Final confirmation: delete EVERY conversation?")) return;
               const t=localStorage.getItem("accessToken");
-              const res=await fetch("http://127.0.0.1:8000/api/auth/data/clear-history/",{method:"POST", headers: t?{Authorization:`Bearer ${t}`}:{}});
+              const res=await fetch(apiUrl("/api/auth/data/clear-history/"),{method:"POST", headers: t?{Authorization:`Bearer ${t}`}:{}});
               if(res.ok) alert("Cleared");
             }} className="w-full py-2 rounded-full text-xs border" style={{borderColor:"rgba(255,60,60,0.3)", color:"#ff5c5c"}}>Delete all conversations</button>
             <button onClick={async()=>{
@@ -443,7 +446,7 @@ export default function SettingsPage(){
               if(!pwd) return;
               const [conf, pass] = pwd.split(":");
               const t=localStorage.getItem("accessToken");
-              const res=await fetch("http://127.0.0.1:8000/api/auth/delete-account/",{method:"POST", headers:{ "Content-Type":"application/json", ...(t?{Authorization:`Bearer ${t}`}:{})}, body: JSON.stringify({confirm:conf||"", password:pass||""})});
+              const res=await fetch(apiUrl("/api/auth/delete-account/"),{method:"POST", headers:{ "Content-Type":"application/json", ...(t?{Authorization:`Bearer ${t}`}:{})}, body: JSON.stringify({confirm:conf||"", password:pass||""})});
               const j=await res.json().catch(()=>({detail:"Failed"}));
               if(res.ok){ alert("Account deleted"); localStorage.clear(); window.location.href="/"; } else alert(j.detail || "Failed");
             }} className="w-full py-2 rounded-full text-xs" style={{background:"#ff3b30", color:"white"}}>Delete account</button>
@@ -472,7 +475,7 @@ export default function SettingsPage(){
             setPwdMsg(null);
             try{
               const t=localStorage.getItem("accessToken");
-              const res=await fetch("http://127.0.0.1:8000/api/auth/change-password/",{method:"POST", headers:{ "Content-Type":"application/json", ...(t?{Authorization:`Bearer ${t}`}:{})}, body: JSON.stringify({current_password: pwd.cur, new_password: pwd.nw, confirm_password: pwd.conf})});
+              const res=await fetch(apiUrl("/api/auth/change-password/"),{method:"POST", headers:{ "Content-Type":"application/json", ...(t?{Authorization:`Bearer ${t}`}:{})}, body: JSON.stringify({current_password: pwd.cur, new_password: pwd.nw, confirm_password: pwd.conf})});
               const j=await res.json().catch(()=>({}));
               if(!res.ok) throw new Error(j.detail || "Failed");
               setPwdMsg("Password changed ✓"); setPwd({cur:"",nw:"",conf:""});
@@ -503,7 +506,7 @@ export default function SettingsPage(){
           <a href="https://github.com" target="_blank" rel="noopener" className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Documentation</a>
           <a href="#" className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Privacy</a>
           <a href="#" className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Terms</a>
-          <button onClick={()=> fetch("http://127.0.0.1:8000/api/ai/health/").then(r=>r.json()).then(j=> alert(j.status==="healthy"?"VISION is up to date ✓":"Check health"))} className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Check for updates</button>
+          <button onClick={()=> fetch(apiUrl("/api/ai/health/")).then(r=>r.json()).then(j=> alert(j.status==="healthy"?"VISION is up to date ✓":"Check health"))} className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Check for updates</button>
         </div>
       </Section>
     </div>

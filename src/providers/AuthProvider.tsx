@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
-const API = "http://127.0.0.1:8000";
+import { apiUrl } from "@/lib/api";
 
 type User = {
   id: string;
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refresh = localStorage.getItem("refreshToken") || localStorage.getItem("refresh") || "";
     if (!refresh) return false;
     try {
-      const res = await fetch(`${API}/api/auth/refresh/`, {
+      const res = await fetch(apiUrl("/api/auth/refresh/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh }),
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           // Try to fetch full profile
           try {
-            const meRes = await fetch(`${API}/api/auth/me/`, {
+            const meRes = await fetch(apiUrl("/api/auth/me/"), {
               headers: { Authorization: `Bearer ${newAccess}` },
             });
             if (meRes.ok) {
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // Try me endpoint for validation; fallback to payload if endpoint missing
     try {
-      const res = await fetch(`${API}/api/auth/me/`, {
+      const res = await fetch(apiUrl("/api/auth/me/"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

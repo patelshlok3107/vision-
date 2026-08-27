@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { apiUrl } from "@/lib/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -21,7 +22,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/login/", {
+      const res = await fetch(apiUrl("/api/auth/login/"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: email, email, password }),
       });

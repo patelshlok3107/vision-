@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:8000";
+import { apiUrl } from "@/lib/api";
 function authHeader(): Record<string,string> {
   if (typeof window==="undefined") return {};
   const t = localStorage.getItem("accessToken") || localStorage.getItem("access") || "";
@@ -9,12 +9,12 @@ export type Profile = {
   first_name: string; last_name: string; bio: string; avatar: string | null; date_joined: string | null;
 };
 export async function getProfile(): Promise<Profile> {
-  const res = await fetch(`${API}/api/auth/profile/`, { headers: authHeader() });
+  const res = await fetch(apiUrl("/api/auth/profile/"), { headers: authHeader() });
   if (!res.ok) throw new Error("Failed to load profile");
   return res.json();
 }
 export async function updateProfile(data: { name?: string; username?: string; email?: string; bio?: string }): Promise<Profile> {
-  const res = await fetch(`${API}/api/auth/profile/`, {
+  const res = await fetch(apiUrl("/api/auth/profile/"), {
     method: "PATCH", headers: { "Content-Type":"application/json", ...authHeader() },
     body: JSON.stringify(data)
   });
@@ -26,7 +26,7 @@ export async function updateProfile(data: { name?: string; username?: string; em
 }
 export async function uploadAvatar(file: File): Promise<{avatar:string}> {
   const fd = new FormData(); fd.append("avatar", file);
-  const res = await fetch(`${API}/api/auth/avatar/`, { method:"POST", headers: authHeader(), body: fd });
+  const res = await fetch(apiUrl("/api/auth/avatar/"), { method:"POST", headers: authHeader(), body: fd });
   if (!res.ok) {
     const j = await res.json().catch(()=>({detail:"Upload failed"}));
     throw new Error(j.detail || "Upload failed");
@@ -34,11 +34,11 @@ export async function uploadAvatar(file: File): Promise<{avatar:string}> {
   return res.json();
 }
 export async function deleteAvatar(): Promise<void> {
-  const res = await fetch(`${API}/api/auth/avatar/`, { method:"DELETE", headers: authHeader() });
+  const res = await fetch(apiUrl("/api/auth/avatar/"), { method:"DELETE", headers: authHeader() });
   if (!res.ok) throw new Error("Delete failed");
 }
 export async function changePassword(current_password:string, new_password:string, confirm_password:string): Promise<void> {
-  const res = await fetch(`${API}/api/auth/change-password/`, {
+  const res = await fetch(apiUrl("/api/auth/change-password/"), {
     method:"POST", headers: { "Content-Type":"application/json", ...authHeader() },
     body: JSON.stringify({ current_password, new_password, confirm_password })
   });
@@ -48,12 +48,12 @@ export async function changePassword(current_password:string, new_password:strin
   }
 }
 export async function getDataStats(): Promise<{conversations:number; memory_items:number; files:number; storage_mb:number; storage_bytes:number}> {
-  const res = await fetch(`${API}/api/auth/data/stats/`, { headers: authHeader() });
+  const res = await fetch(apiUrl("/api/auth/data/stats/"), { headers: authHeader() });
   if (!res.ok) throw new Error("Failed");
   return res.json();
 }
 export async function exportData(): Promise<any> {
-  const res = await fetch(`${API}/api/auth/data/export/`, { headers: authHeader() });
+  const res = await fetch(apiUrl("/api/auth/data/export/"), { headers: authHeader() });
   if (!res.ok) throw new Error("Export failed");
   return res.json();
 }

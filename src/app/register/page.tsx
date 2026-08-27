@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { apiUrl } from "@/lib/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -24,13 +25,13 @@ export default function RegisterPage() {
     if (password !== confirm) { setError("Passwords do not match."); return; }
     setError(""); setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/register/", {
+      const res = await fetch(apiUrl("/api/auth/register/"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.email?.[0] || data.password?.[0] || data.detail || "Registration failed.");
-      const tokenRes = await fetch("http://127.0.0.1:8000/api/auth/login/", {
+      const tokenRes = await fetch(apiUrl("/api/auth/login/"), {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: email, email, password }),
       });

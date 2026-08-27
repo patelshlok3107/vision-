@@ -2,6 +2,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
+import PWAInstallButton from "@/components/PWAInstallButton";
+import ConnectionStatus from "@/components/ConnectionStatus";
 
 export default function Home() {
   const { isAuthenticated, loading } = useAuth();
@@ -207,10 +209,15 @@ body.menu-open .vesper .menu-backdrop{opacity:1;visibility:visible;backdrop-filt
               <span className="headline-line appear appear--mask" style={{ ["--d" as any]: "0.42s" }}><span>Train <em>AI agents</em> on your</span></span>
               <span className="headline-line appear appear--mask" style={{ ["--d" as any]: "0.62s" }}><span>workflows in minutes.</span></span>
             </h1>
-            <p className="lede appear appear--soft" style={{ ["--d" as any]: "0.82s" }}>Deploy adaptive AI agents that learn, execute, and scale operational tasks across your business.</p>
+            <p className="lede appear appear--soft" style={{ ["--d" as any]: "0.82s" }}>VISION is a fast, intelligent personal AI assistant for chat, coding, image analysis, and more.</p>
             <div className="hero-actions">
-              <a className="btn btn-solid appear appear--btn" href={isAuthenticated ? "/chat" : "/register"} style={{ ["--d" as any]: "0.96s" }}>{isAuthenticated ? "Open Workspace" : "Start for Free"}</a>
-              <a className="btn btn-ghost appear appear--side" href={isAuthenticated ? "/chat" : "#demo"} style={{ ["--d" as any]: "1.10s" }}>{isAuthenticated ? "Go to Chat" : "See it in action"}</a>
+              <a className="btn btn-solid appear appear--btn" href={isAuthenticated ? "/chat" : "/register"} style={{ ["--d" as any]: "0.96s" }}>{isAuthenticated ? "Open Workspace" : "Start Chatting"}</a>
+              <span className="appear appear--side" style={{ ["--d" as any]: "1.10s" }}><PWAInstallButton variant="hero" /></span>
+              <a className="btn btn-ghost appear appear--side" href={isAuthenticated ? "/chat" : "#demo"} style={{ ["--d" as any]: "1.20s" }}>{isAuthenticated ? "Go to Chat" : "See it in action"}</a>
+            </div>
+            <div className="appear appear--soft mt-4 flex flex-col items-center gap-2" style={{ ["--d" as any]: "1.30s" }}>
+              <ConnectionStatus subtle />
+              <div className="text-[11px] tracking-wide" style={{ color: "rgba(255,255,255,0.45)" }}>Works on: Web • Android • iPhone/iPad • Desktop</div>
             </div>
           </div>
         </main>

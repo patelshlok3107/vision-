@@ -1,5 +1,5 @@
 /* VISION Service Worker — precache app shell, offline fallback, push notifications */
-const CACHE = "vision-v1";
+const CACHE = "vision-v2";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = ["/", OFFLINE_URL, "/manifest.webmanifest"];
 
@@ -17,41 +17,43 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  // Skip non-GET, API, and chrome-extension
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.pathname.startsWith("/api/")) return; // never cache API
+  if (url.pathname.startsWith("/api/")) return;
   if (url.origin !== location.origin) return;
 
-  // Navigation: network-first, fallback to cache/offline
   if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req).then((res) => {
+    event.respondWith((async () => {
+      try {
+        const res = await fetch(req);
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));
         return res;
-      }).catch(async () => {
+      } catch {
         const cached = await caches.match(req);
-        return cached || caches.match(OFFLINE_URL);
-      })
-    );
+        if (cached) return cached;
+        const offline = await caches.match(OFFLINE_URL);
+        if (offline) return offline;
+        return new Response("<h1>Offline</h1><p>VISION is offline.</p>", { status: 503, headers: { "Content-Type": "text/html" } });
+      }
+    })());
     return;
   }
 
-  // Assets: cache-first
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
-        // cache static assets
-        if (res.ok && (url.pathname.match(/\.(js|css|png|svg|woff2|webp|jpg|jpeg)$/))) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => cached);
-    })
-  );
+  event.respondWith((async () => {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    try {
+      const res = await fetch(req);
+      if (res.ok && url.pathname.match(/\.(js|css|png|svg|woff2|webp|jpg|jpeg)$/)) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+      }
+      return res;
+    } catch {
+      return cached || new Response("", { status: 504 });
+    }
+  })());
 });
 
 // Push notifications
@@ -81,7 +83,6 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-// Allow page to trigger skipWaiting
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();
 });

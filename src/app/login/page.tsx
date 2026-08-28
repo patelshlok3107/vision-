@@ -57,46 +57,76 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--bg)", color: "var(--text)" }}>
-      {/* Left — branding */}
-      <div className="hidden md:flex flex-1 flex-col justify-between p-10 border-r" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+    <div className="min-h-screen flex flex-col md:flex-row" style={{ background: "var(--bg)", color: "var(--text)" }}>
+      {/* Left — branding (desktop) */}
+      <div className="hidden md:flex flex-1 flex-col justify-between p-8 lg:p-12 border-r relative overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         <VisionLogo size={32} showText={true} />
-        <div>
-          <h2 className="text-4xl font-light leading-tight">Your intelligence<br />layer.</h2>
-          <p className="text-white/50 text-sm mt-3 max-w-sm">VISION understands, remembers and acts — local-first.</p>
-          <div className="mt-8 h-32 rounded-2xl bg-white/[0.06] border border-white/10" />
+        <div className="space-y-5 max-w-[420px]">
+          <h2 className="text-[40px] font-light leading-[1.05] tracking-tight" style={{color:"var(--text)"}}>Your intelligence<br />layer.</h2>
+          <p className="text-sm leading-relaxed" style={{color:"var(--muted)"}}>Think, create, analyze and build with VISION — your personal AI assistant.</p>
+          <div className="mt-2 grid grid-cols-3 gap-3 opacity-80">
+            <div className="rounded-2xl border p-4 h-28 flex flex-col justify-between" style={{background:"var(--bg)", borderColor:"var(--border)"}}>
+              <span className="text-xs" style={{color:"var(--muted)"}}>01 — Chat</span>
+              <span className="text-xs leading-snug" style={{color:"var(--text)"}}>Fast, private, streaming</span>
+            </div>
+            <div className="rounded-2xl border p-4 h-28 flex flex-col justify-between" style={{background:"var(--bg)", borderColor:"var(--border)"}}>
+              <span className="text-xs" style={{color:"var(--muted)"}}>02 — Code</span>
+              <span className="text-xs leading-snug" style={{color:"var(--text)"}}>Complete apps</span>
+            </div>
+            <div className="rounded-2xl border p-4 h-28 flex flex-col justify-between" style={{background:"var(--bg)", borderColor:"var(--border)"}}>
+              <span className="text-xs" style={{color:"var(--muted)"}}>03 — Vision</span>
+              <span className="text-xs leading-snug" style={{color:"var(--text)"}}>See & analyze</span>
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-white/30">© 2026 VISION</div>
+        <div className="space-y-1">
+          <div className="text-xs" style={{color:"var(--muted)"}}>© 2026 VISION</div>
+          <div className="text-[11px] tracking-widest" style={{color:"var(--muted)", opacity:0.7}}>Created by <span className="font-medium" style={{color:"var(--text)"}}>shlokk.patel</span></div>
+        </div>
       </div>
       {/* Right — form */}
-      <div className="flex-1 flex items-center justify-center p-6 relative">
-        <div className="absolute top-4 right-4"><ThemeToggle /></div>
-        <form onSubmit={handleLogin} className="w-full max-w-sm space-y-6">
-          <div>
-            <h1 className="text-2xl font-medium" style={{ color: "var(--text)" }}>Welcome back</h1>
-            <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>Enter your credentials to access your workspace</p>
-          </div>
-          {error && <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-3">{error}</div>}
-          <div className="space-y-3">
-            <label className="text-xs tracking-widest" style={{ color: "var(--muted)" }}>EMAIL</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} placeholder="m@example.com" type="email" required className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-            <label className="text-xs tracking-widest" style={{ color: "var(--muted)" }}>PASSWORD</label>
-            <div className="relative">
-              <input value={password} onChange={e => setPassword(e.target.value)} type={showPw ? "text" : "password"} required className="w-full rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
-              <button type="button" onClick={()=> setShowPw(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs px-2 py-1 rounded-full border" style={{borderColor:"var(--border)", color:"var(--muted)"}}>{showPw ? "Hide" : "Show"}</button>
+      <div className="flex-1 flex flex-col min-h-screen md:min-h-0">
+        <div className="flex justify-between items-center p-4 md:justify-end" style={{paddingTop:"max(16px, env(safe-area-inset-top))"}}>
+          <VisionLogo size={28} showText={false} className="md:hidden" />
+          <ThemeToggle />
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6 pt-2 pb-[max(24px,env(safe-area-inset-bottom))]">
+          <form onSubmit={handleLogin} className="w-full max-w-[360px] space-y-5">
+            <div className="md:hidden flex flex-col items-center text-center mb-2">
+              <VisionLogo size={36} showText={true} showSubtitle={true} />
+              <p className="text-xs mt-3 max-w-[280px]" style={{color:"var(--muted)"}}>Think, create, analyze and build with VISION — your personal AI assistant.</p>
             </div>
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-xs cursor-pointer" style={{color:"var(--muted)"}}>
-                <input type="checkbox" checked={remember} onChange={e=> setRemember(e.target.checked)} className="rounded" /> Remember me
-              </label>
-              <a href="#" onClick={e=>{ e.preventDefault(); alert("Password reset via email is not configured for local Ollama setup. Contact admin."); }} className="text-xs hover:opacity-100 opacity-60" style={{ color: "var(--muted)" }}>Forgot password?</a>
+            <div>
+              <h1 className="text-[22px] font-medium tracking-tight" style={{ color: "var(--text)" }}>Welcome back</h1>
+              <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>Enter your credentials to access your workspace</p>
             </div>
-          </div>
-          <button type="submit" disabled={loading} className="w-full rounded-full py-3 text-sm font-medium transition flex justify-center items-center" style={{ background: "var(--text)", color: "var(--bg)" }}>
-            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Continue"}
-          </button>
-          <p className="text-center text-sm" style={{ color: "var(--muted)" }}>Don&apos;t have an account? <Link href="/register" className="hover:underline" style={{ color: "var(--text)" }}>Sign up</Link></p>
-        </form>
+            {error && <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-3">{error}</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] tracking-widest font-medium" style={{ color: "var(--muted)" }}>EMAIL</label>
+                <input value={email} onChange={e => setEmail(e.target.value)} placeholder="m@example.com" type="email" required className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none mt-1.5 transition" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+              </div>
+              <div>
+                <label className="text-[11px] tracking-widest font-medium" style={{ color: "var(--muted)" }}>PASSWORD</label>
+                <div className="relative mt-1.5">
+                  <input value={password} onChange={e => setPassword(e.target.value)} type={showPw ? "text" : "password"} required className="w-full rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none transition" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <button type="button" onClick={()=> setShowPw(v=>!v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] px-2.5 py-1 rounded-full border transition" style={{borderColor:"var(--border)", color:"var(--muted)"}}>{showPw ? "Hide" : "Show"}</button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center gap-2 text-xs cursor-pointer" style={{color:"var(--muted)"}}>
+                  <input type="checkbox" checked={remember} onChange={e=> setRemember(e.target.checked)} className="rounded w-3.5 h-3.5" /> Remember me
+                </label>
+                <a href="#" onClick={e=>{ e.preventDefault(); alert("Password reset via email is not configured. Contact admin."); }} className="text-xs hover:underline" style={{ color: "var(--muted)" }}>Forgot password?</a>
+              </div>
+            </div>
+            <button type="submit" disabled={loading} className="w-full rounded-full py-3 text-sm font-medium transition flex justify-center items-center hover:opacity-90 active:scale-[0.98]" style={{ background: "var(--text)", color: "var(--bg)" }}>
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Continue"}
+            </button>
+            <p className="text-center text-sm" style={{ color: "var(--muted)" }}>Don&apos;t have an account? <Link href="/register" className="hover:underline font-medium" style={{ color: "var(--text)" }}>Sign up</Link></p>
+            <div className="text-center text-[10px] tracking-widest pt-2" style={{color:"var(--muted)", opacity:0.6}}>Created by shlokk.patel</div>
+          </form>
+        </div>
       </div>
     </div>
   );

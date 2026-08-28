@@ -87,8 +87,8 @@ function ImageGrid({ atts, onClick }: { atts: AttachmentOut[]; onClick?: (url: s
 
 function ThinkingDots({ text = "Thinking" }: { text?: string }) {
   const [dots, setDots] = useState("");
-  useEffect(() => { const i = setInterval(() => setDots(d => d.length >= 3 ? "" : d + "."), 350); return () => clearInterval(i); }, []);
-  return <span className="inline-flex"><span>{text}</span><span className="w-4 text-left">{dots}</span></span>;
+  useEffect(() => { const i = setInterval(() => setDots(d => d.length >= 3 ? "" : d + "."), 420); return () => clearInterval(i); }, []);
+  return <span className="inline-flex items-center gap-1 animate-fadeIn"><span className="h-1.5 w-1.5 rounded-full bg-[var(--text)] thinking-dot" /><span className="text-xs tracking-wide" style={{color:"var(--muted)"}}>{text}</span><span className="w-4 text-left text-xs" style={{color:"var(--muted)"}}>{dots}</span></span>;
 }
 
 let _lastHealthFetch = 0;
@@ -563,6 +563,25 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       }
       setStreamingText("");
       streamingAccumRef.current = "";
+      // Notify if backgrounded and response completed — use VISION logo
+      try {
+        if (typeof document !== "undefined" && document.hidden && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && finalText) {
+          const isCode = finalText.includes("```") || /<\/?html|function |const |import /.test(finalText);
+          const isImage = pendingSnapshot.length > 0 || finalText.toLowerCase().includes("image");
+          let body = "Your response is ready.";
+          let tag = "vision-chat";
+          if (isCode) { body = "Your code is ready."; tag = "vision-code"; }
+          else if (isImage) { body = "Image analysis completed."; tag = "vision-image"; }
+          // Use service worker notification with VISION logo where supported
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification("VISION", { body, icon: "/icons/icon-192.png", badge: "/icons/icon-72.png", tag, data: { url: newConvId ? `/chat/${newConvId}` : "/chat" } }).catch(()=>{});
+            }).catch(()=>{});
+          } else {
+            new Notification("VISION", { body });
+          }
+        }
+      } catch {}
 
       if (_isGuestSend) {
         // Save guest history locally for session continuity
@@ -932,7 +951,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
               const displayContent = isPlaceholder ? streamingText : m.content;
               const isActiveStreaming = streaming && isPlaceholder;
               return (
-              <div key={m.id} className={`${m.role === "user" ? "ml-auto" : m.role === "tool" ? "" : ""} rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[90%] md:max-w-[75%]`} style={m.role==="user" ? { background: "var(--button-bg)", color: "var(--button-text)" } : m.role==="tool" ? {} : { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }} >
+              <div key={m.id} className={`${m.role === "user" ? "ml-auto" : m.role === "tool" ? "" : ""} rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[90%] md:max-w-[75%] message-enter`} style={m.role==="user" ? { background: "var(--button-bg)", color: "var(--button-text)" } : m.role==="tool" ? {} : { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }} >
                 {m.attachments && m.attachments.length > 0 && <ImageGrid atts={m.attachments} onClick={setViewer} />}
                 {m.role === "tool" ? <ToolBlock content={m.content} tool_name={(m as any).tool_name} tool_args={(m as any).tool_args} tool_result={(m as any).tool_result} /> : <><div className={m.role === "assistant" ? "" : "whitespace-pre-wrap"}>{m.role === "assistant" ? <MarkdownRenderer content={displayContent} isStreaming={isActiveStreaming} /> : m.content}</div>{m.role === "assistant" && displayContent && !m.metadata?.error && !isPlaceholder && (
                   <div className="mt-2 flex gap-1.5 flex-wrap">

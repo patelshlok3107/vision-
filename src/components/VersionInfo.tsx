@@ -30,7 +30,12 @@ export default function VersionInfo() {
         <div>
           <div className="text-sm font-medium">VISION</div>
           <div className="text-xs" style={{ color: "var(--muted)" }}>Version {APP_VERSION} • Build {APP_BUILD}</div>
+          <div className="text-[11px] tracking-wide" style={{ color: "var(--muted)" }}>Your personal AI assistant</div>
         </div>
+      </div>
+      <div className="pt-2 space-y-1">
+        <div className="text-xs" style={{ color: "var(--muted)" }}>Created by <span className="font-medium" style={{color:"var(--text)"}}>Shlok Patel</span></div>
+        <div className="text-[11px] tracking-widest" style={{ color: "var(--muted)", opacity:0.7 }}>shlokk.patel</div>
       </div>
 
       <div className="flex flex-wrap gap-2">

@@ -397,3 +397,29 @@ pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
   .chat-content { padding: 12px 10px; }
   .composer-wrapper { padding: 10px 8px max(10px, env(safe-area-inset-bottom)); }
 }
+
+/* Subtle animations — fast, premium */
+@keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: translateY(0); } }
+@keyframes slideIn { from { opacity:0; transform: translateX(-8px); } to { opacity:1; transform: translateX(0); } }
+@keyframes scaleIn { from { opacity:0; transform: scale(0.98); } to { opacity:1; transform: scale(1); } }
+@keyframes pulseSubtle { 0%,100% { opacity:1 } 50% { opacity:0.6 } }
+.animate-fadeIn { animation: fadeIn 0.24s ease; }
+.animate-slideIn { animation: slideIn 0.22s ease; }
+.animate-scaleIn { animation: scaleIn 0.20s ease; }
+.message-enter { animation: fadeIn 0.22s ease; }
+.thinking-dot { animation: pulseSubtle 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .animate-fadeIn, .animate-slideIn, .animate-scaleIn, .message-enter, .thinking-dot { animation:none; } }
+
+/* Focus states — consistent */
+input:focus, textarea:focus, select:focus, button:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 1px;
+}
+button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* Hover states — subtle */
+button:hover { transition: all 0.15s ease; }
+
+/* Loading states */
+.skeleton { background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.2s ease infinite; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

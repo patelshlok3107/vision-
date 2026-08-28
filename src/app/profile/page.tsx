@@ -227,8 +227,9 @@ export default function ProfilePage() {
               </div>
 
               <button onClick={()=> { logout(); router.push("/"); }} className="w-full rounded-full py-3 text-sm font-medium border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Log out</button>
-              <div className="text-center">
+              <div className="text-center space-y-2">
                 <Link href="/chat" className="text-xs" style={{color:"var(--muted)"}}>← Back to VISION</Link>
+                <div className="text-[11px] tracking-widest" style={{color:"var(--muted)", opacity:0.6}}>Created by Shlok Patel • shlokk.patel</div>
               </div>
             </div>
           )}

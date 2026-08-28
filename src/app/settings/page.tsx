@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import VisionLogo from "@/components/VisionLogo";
 import ThemeToggle from "@/components/ThemeToggle";
+import VersionInfo from "@/components/VersionInfo";
 import { getLocalSettings, saveLocalSettings, applySettingsSideEffects, fetchRemoteSettings, pushRemoteSettings, defaults } from "@/lib/settings";
 import { listMemories, createMemory, deleteMemory, clearMemories, togglePin, type Memory } from "@/lib/memory";
 import { getDataStats, exportData } from "@/lib/profile";
@@ -121,6 +122,8 @@ export default function SettingsPage(){
       fetch(apiUrl("/api/auth/data/stats/"),{headers:h}).then(r=>r.json()).then(setStats).catch(()=>{});
     }
   },[]);
+
+  useEffect(()=>{ if(mobileView) setActive(mobileView); },[mobileView]);
 
   const update = (patch: any) => {
     const next = { ...settings, ...patch };
@@ -494,11 +497,8 @@ export default function SettingsPage(){
   const renderAbout = () => (
     <div className="space-y-4">
       <Section title="About VISION" desc="Your personal AI assistant.">
-        <div className="flex flex-col items-center text-center py-4">
-          <VisionLogo size={36} showText={true} showSubtitle={true} />
-          <div className="text-xs mt-2" style={{color:"var(--muted)"}}>Version 1.0.0 • Local-first • Powered by Ollama</div>
-        </div>
-        <div className="divide-y" style={{borderColor:"var(--border)"}}>
+        <VersionInfo />
+        <div className="divide-y mt-4" style={{borderColor:"var(--border)"}}>
           <div className="flex justify-between py-3"><span className="text-sm" style={{color:"var(--muted)"}}>Local AI</span><span className="text-sm" style={{color:"var(--text)"}}>Ollama • {aiCfg?.ollama_url || health?.ollama?.baseUrl || "localhost:11434"}</span></div>
           <div className="flex justify-between py-3"><span className="text-sm" style={{color:"var(--muted)"}}>Environment</span><span className="text-sm" style={{color:"var(--text)"}}>{aiCfg?.local_only ? "Local only" : "Hybrid"}</span></div>
         </div>
@@ -506,7 +506,6 @@ export default function SettingsPage(){
           <a href="https://github.com" target="_blank" rel="noopener" className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Documentation</a>
           <a href="#" className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Privacy</a>
           <a href="#" className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Terms</a>
-          <button onClick={()=> fetch(apiUrl("/api/ai/health/")).then(r=>r.json()).then(j=> alert(j.status==="healthy"?"VISION is up to date ✓":"Check health"))} className="px-4 py-2 rounded-full text-xs border" style={{borderColor:"var(--border)", color:"var(--text)"}}>Check for updates</button>
         </div>
       </Section>
     </div>
@@ -533,14 +532,12 @@ export default function SettingsPage(){
   if (mobileView) {
     const title = NAV.find(n=> n.id===mobileView)?.label || mobileView;
     return (
-      <div className="min-h-screen flex flex-col" style={{background:"var(--bg)", color:"var(--text)"}}>
-        <div className="h-14 flex items-center gap-3 px-4 border-b shrink-0" style={{borderColor:"var(--border)"}}>
-          <button onClick={()=> setMobileView(null)} className="h-8 w-8 grid place-items-center rounded-full border text-sm" style={{borderColor:"var(--border)"}}>←</button>
+      <div className="min-h-screen flex flex-col" style={{background:"var(--bg)", color:"var(--text)", paddingTop: "env(safe-area-inset-top)"}}>
+        <div className="h-14 flex items-center gap-3 px-4 border-b shrink-0" style={{borderColor:"var(--border)", paddingTop: "env(safe-area-inset-top)"}}>
+          <button onClick={()=> setMobileView(null)} className="h-9 w-9 grid place-items-center rounded-full border text-sm shrink-0" style={{borderColor:"var(--border)", minWidth: "36px", minHeight: "36px"}} aria-label="Back to settings">←</button>
           <span className="text-sm font-medium">{title}</span>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 pb-8">
-          {(() => { setActive(mobileView); return null; })()}
-          {/* render based on mobileView */}
+        <div className="flex-1 overflow-y-auto p-4 pb-[max(32px,env(safe-area-inset-bottom))] overscroll-contain">
           <div className="space-y-4">
             {mobileView==="general" && renderGeneral()}
             {mobileView==="appearance" && renderAppearance()}
@@ -560,9 +557,9 @@ export default function SettingsPage(){
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{background:"var(--bg)", color:"var(--text)"}}>
+    <div className="min-h-screen flex flex-col" style={{background:"var(--bg)", color:"var(--text)", paddingTop: "env(safe-area-inset-top)"}}>
       {/* Top bar */}
-      <div className="h-14 flex items-center justify-between px-4 md:px-6 border-b shrink-0" style={{borderColor:"var(--border)", background:"var(--bg)"}}>
+      <div className="h-14 flex items-center justify-between px-4 md:px-6 border-b shrink-0" style={{borderColor:"var(--border)", background:"var(--bg)", paddingTop: "env(safe-area-inset-top)"}}>
         <div className="flex items-center gap-3">
           <Link href="/chat" className="h-8 w-8 grid place-items-center rounded-full border text-xs" style={{borderColor:"var(--border)"}}>←</Link>
           <span className="text-sm font-medium">Settings</span>

@@ -3,6 +3,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useRef } from "react";
 import ChatHistorySidebar from "@/components/ChatHistorySidebar";
 import ChatView from "@/components/ChatView";
+import MobileDrawer from "@/components/MobileDrawer";
+import Link from "next/link";
 
 export default function ChatConversationPage() {
   const params = useParams<{ conversationId: string }>();
@@ -24,16 +26,19 @@ export default function ChatConversationPage() {
       <div className="hidden md:flex">
         <ChatHistorySidebar activeId={conversationId} onNewChat={()=>router.push("/chat")} />
       </div>
-      {drawer && (
-        <div className="fixed inset-0 z-40 md:hidden flex">
-          <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={()=>setDrawer(false)} />
-          <div className="w-[300px] max-w-[82vw] h-full flex flex-col" style={{ background: "var(--sidebar-bg)", borderRight: "1px solid var(--border)", paddingTop: "env(safe-area-inset-top)" }}><ChatHistorySidebar activeId={conversationId} onNewChat={()=>{setDrawer(false); router.push("/chat");}} /></div>
+      <MobileDrawer open={drawer} onClose={() => setDrawer(false)}>
+        <div className="flex-1 overflow-hidden flex flex-col" onClick={(e)=>{ const t=e.target as HTMLElement; if(t.closest("a")) setDrawer(false); }}>
+          <ChatHistorySidebar activeId={conversationId} onNewChat={()=>{setDrawer(false); router.push("/chat");}} />
         </div>
-      )}
-      <div className="md:hidden fixed top-0 left-0 z-10 p-2" style={{ paddingTop: "max(8px, env(safe-area-inset-top))", paddingLeft: "max(8px, env(safe-area-inset-left))" }}>
-        <button onClick={()=>{ setDrawer(true); if(navigator.vibrate) navigator.vibrate(8); }} className="px-3 py-2 rounded-full text-xs font-medium shadow-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} aria-label="Open menu">☰ VISION</button>
+      </MobileDrawer>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-10 mobile-header">
+        <button onClick={()=>{ setDrawer(true); if(navigator.vibrate) navigator.vibrate(8); }} className="h-9 w-9 grid place-items-center rounded-full border text-sm shrink-0" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }} aria-label="Open navigation menu">☰</button>
+        <span className="text-sm font-medium tracking-widest">VISION</span>
+        <Link href="/profile" aria-label="Profile" className="h-9 w-9 grid place-items-center rounded-full border text-xs" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}>•</Link>
       </div>
-      <ChatView conversationId={conversationId} />
+      <div className="flex-1 min-w-0 flex flex-col pt-[calc(56px+env(safe-area-inset-top))] md:pt-0 overflow-hidden">
+        <ChatView conversationId={conversationId} />
+      </div>
     </div>
   );
 }

@@ -169,13 +169,14 @@ export async function streamChat(message: string, conversation_id: string | null
     signal,
   });
   if (!res.ok) {
-    try {
-      const j = await res.json();
-      throw new Error(j.detail || j.error || j.message || res.statusText);
-    } catch {
-      const err = await res.text().catch(() => "");
-      throw new Error(err || String(res.status));
-    }
+    let bodyText = "";
+    try { bodyText = await res.text(); } catch {}
+    let parsed: any = null;
+    try { parsed = JSON.parse(bodyText); } catch {}
+    const serverMsg = parsed?.detail || parsed?.error || parsed?.message || bodyText || res.statusText;
+    // Add status code context for frontend mapping
+    const withCode = res.status >= 400 ? `${serverMsg} (${res.status})` : serverMsg;
+    throw new Error(withCode);
   }
   const reader = res.body?.getReader();
   if (!reader) return null;

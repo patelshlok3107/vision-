@@ -1,11 +1,12 @@
-/* VISION Service Worker — precache app shell, offline fallback, push notifications */
-const CACHE = "vision-v2";
+/* VISION Service Worker — v1.1.0 — cache app shell, offline fallback, push, update lifecycle */
+const CACHE = "vision-v1.1.0";
 const OFFLINE_URL = "/offline.html";
-const PRECACHE = ["/", OFFLINE_URL, "/manifest.webmanifest"];
+const PRECACHE = ["/", OFFLINE_URL, "/manifest.webmanifest", "/version.json"];
 
 self.addEventListener("install", (event) => {
+  // Do NOT skipWaiting automatically — wait for user to confirm update
   event.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((c) => c.addAll(PRECACHE.map((u) => new Request(u, { cache: "reload" }))))
   );
 });
 
@@ -19,19 +20,32 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.pathname.startsWith("/api/")) return;
+  // Never cache version.json or API
+  if (url.pathname === "/version.json" || url.pathname.startsWith("/api/")) return;
   if (url.origin !== location.origin) return;
+
+  // Don't intercept Next.js internals that need fresh network
+  if (url.pathname.startsWith("/_next/") && req.headers.get("purpose") !== "prefetch") {
+    // For _next static, use cache-first but bypass for data requests
+    if (url.pathname.includes("/_next/data/") || url.searchParams.has("x-nextjs-data")) return;
+  }
 
   if (req.mode === "navigate") {
     event.respondWith((async () => {
       try {
-        const res = await fetch(req);
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        const res = await fetch(req, { cache: "no-store" });
+        // Only cache successful HTML
+        if (res.ok && res.headers.get("content-type")?.includes("text/html")) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
         return res;
       } catch {
         const cached = await caches.match(req);
         if (cached) return cached;
+        // Try cached root for SPA fallback
+        const root = await caches.match("/");
+        if (root) return root;
         const offline = await caches.match(OFFLINE_URL);
         if (offline) return offline;
         return new Response("<h1>Offline</h1><p>VISION is offline.</p>", { status: 503, headers: { "Content-Type": "text/html" } });
@@ -45,7 +59,7 @@ self.addEventListener("fetch", (event) => {
     if (cached) return cached;
     try {
       const res = await fetch(req);
-      if (res.ok && url.pathname.match(/\.(js|css|png|svg|woff2|webp|jpg|jpeg)$/)) {
+      if (res.ok && url.pathname.match(/\.(js|css|png|svg|woff2|webp|jpg|jpeg|gif|mp4)$/)) {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));
       }
@@ -85,4 +99,5 @@ self.addEventListener("notificationclick", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
 });

@@ -586,7 +586,29 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       if (e.name === 'AbortError') {
         setStatus("");
       } else {
-        const msg = e.message?.includes("vision") || e.message?.includes("No vision") || e.message?.includes("VISION") ? e.message : `VISION couldn't complete that request. ${e.message || ""}`;
+        let msg = e.message || "";
+        // Map known backend errors to user-friendly messages, keep backend's detailed message if already friendly
+        if (msg.includes("VISION")) {
+          // backend already sent a friendly error
+        } else if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Load failed")) {
+          msg = "VISION's backend is currently unavailable. Please try again in a moment.";
+        } else if (msg.toLowerCase().includes("cors")) {
+          msg = "VISION couldn't connect due to a CORS error. Check that the backend allows https://vision-bice-sigma.vercel.app.";
+        } else if (msg.includes("401") || msg.toLowerCase().includes("unauthorized")) {
+          msg = "VISION couldn't authenticate your request. Try signing in again.";
+        } else if (msg.includes("429")) {
+          msg = "VISION is busy — rate-limited. Please retry shortly.";
+        } else if (msg.includes("504") || msg.toLowerCase().includes("timeout")) {
+          msg = "VISION's AI request timed out. The server may be waking up (cold start) — retry in a few seconds.";
+        } else if (msg.includes("502") || msg.includes("503")) {
+          msg = "VISION's backend is temporarily unavailable (server error). Retrying may help.";
+        } else {
+          msg = `VISION couldn't complete that request. ${msg}`;
+        }
+        // Append retry hint if backend is waking
+        if (msg.toLowerCase().includes("cold") || msg.toLowerCase().includes("waking")) {
+          msg += " [Retry]";
+        }
         setLastFailed({ text, attachment_ids, convId: newConvId });
         setMessages(prev => {
           const filtered = prev.filter(m => m.id !== streamIdFixed);
@@ -724,9 +746,9 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   // Empty state
   if (!conversationId && messages.length === 0) {
     return (
-      <div className="chat-area" onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
+      <div className="chat-area" onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} data-streaming={streaming ? "true" : "false"}>
         {dragOver && <div className="absolute inset-0 z-20 bg-black/70 border-2 border-dashed border-white/20 flex items-center justify-center text-sm">Drop image to analyze</div>}
-        <div className="chat-header" style={{ justifyContent: "space-between", padding: "0 16px" }}>
+        <div className="chat-header hidden md:flex" style={{ justifyContent: "space-between", padding: "0 16px" }}>
           <div className="w-8" />
           <div className="text-center">
             <VisionLogo size={28} showText={true} className="justify-center" />
@@ -734,6 +756,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
           </div>
           <div className="flex items-center gap-2"><AuthHeader /><ThemeToggle /></div>
         </div>
+        <div className="md:hidden flex items-center justify-center py-1.5 border-b text-[11px]" style={{ borderColor: "var(--border)", color: !ollamaOk ? "#ff5c5c" : "#6ee7b7" }}>{statusLine}</div>
         {isOffline && <div className="mx-4 mt-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-200 text-center">You're offline. The app shell is available, but AI responses need a connection.</div>}
         {isGuest && (
           <div className="mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs flex justify-between items-center" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--muted)" }}>
@@ -846,9 +869,9 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   }
 
   return (
-    <div className="chat-area" onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
+    <div className="chat-area" onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} data-streaming={streaming ? "true" : "false"}>
       {dragOver && <div className="absolute inset-0 z-20 bg-black/70 border-2 border-dashed border-white/20 flex items-center justify-center text-sm rounded-2xl m-4">Drop image to analyze</div>}
-      <div className="chat-header" style={{ justifyContent: "space-between", padding: "0 16px" }}>
+      <div className="chat-header hidden md:flex" style={{ justifyContent: "space-between", padding: "0 16px" }}>
         <div className="w-8" />
         <div className="text-center">
           <VisionLogo size={28} showText={true} className="justify-center" />
@@ -856,6 +879,8 @@ export default function ChatView({ conversationId }: { conversationId?: string }
         </div>
         <div className="flex items-center gap-2"><AuthHeader /><ThemeToggle /></div>
       </div>
+      {/* Mobile status bar */}
+      <div className="md:hidden flex items-center justify-center py-1.5 border-b text-[11px]" style={{ borderColor: "var(--border)", color: !ollamaOk ? "#ff5c5c" : "#6ee7b7" }}>{statusLine}</div>
       {isOffline && <div className="mx-4 mt-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-200 text-center">You're offline. The app shell is available, but AI responses need a connection.</div>}
       {isGuest && (
         <div className="mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs flex justify-between items-center" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--muted)" }}>
@@ -974,7 +999,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
         {voice.error && <div className="text-xs text-red-400 mt-2 text-center">{voice.error} <button onClick={voice.start} className="underline ml-2">Try Again</button></div>}
         {voice.isListening && <div className="text-[10px] tracking-widest text-red-400 mt-1 text-center">● Listening — Microphone active</div>}
       </div>
-      {viewer && <div onClick={() => setViewer(null)} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onKeyDown={e => e.key === "Escape" && setViewer(null)}><img src={viewer} alt="full" className="max-w-[90vw] max-h-[90vh] rounded-2xl object-contain" /><button className="absolute top-4 right-4 h-8 w-8 rounded-full bg-white text-black grid place-items-center">×</button></div>}
+      {viewer && <div onClick={() => setViewer(null)} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onKeyDown={e => e.key === "Escape" && setViewer(null)}><img src={viewer} alt="full" className="max-w-[90vw] max-h-[90vh] rounded-2xl object-contain" /><button aria-label="Close image viewer" className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white text-black grid place-items-center text-sm" style={{ top: "max(16px, env(safe-area-inset-top))", right: "max(16px, env(safe-area-inset-right))" }}>×</button></div>}
       <MemoryPanel open={showMemory} onClose={() => setShowMemory(false)} />
       <WorkspacePanel open={showWorkspace} onClose={() => setShowWorkspace(false)} />
       <FeatureGateModal open={featureGate.open} feature={featureGate.feature} onClose={() => setFeatureGate({ open: false })} />

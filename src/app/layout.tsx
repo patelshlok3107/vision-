@@ -4,6 +4,7 @@ import './globals.css';
 import { WebSocketProvider } from '@/providers/WebSocketProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import SWRegister from '@/components/SWRegister';
+import UpdateBanner from '@/components/UpdateBanner';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
@@ -101,7 +102,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <SWRegister />
-        <AuthProvider><WebSocketProvider>{children}</WebSocketProvider></AuthProvider>
+        <AuthProvider><WebSocketProvider>{children}<UpdateBanner /></WebSocketProvider></AuthProvider>
       </body>
     </html>
   );

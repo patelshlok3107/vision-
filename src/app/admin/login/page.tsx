@@ -42,8 +42,8 @@ export default function AdminLoginPage() {
         </div>
         <form onSubmit={handleLogin} className="mt-8 space-y-4">
           <div>
-            <label className="text-xs" style={{ color: "var(--muted)" }}>Username</label>
-            <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="admin" className="mt-1 w-full rounded-xl px-4 py-3 text-sm outline-none border" style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }} required />
+            <label className="text-xs" style={{ color: "var(--muted)" }}>Username or Email</label>
+            <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="admin or admin123@gmail.com" className="mt-1 w-full rounded-xl px-4 py-3 text-sm outline-none border" style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }} required />
           </div>
           <div>
             <label className="text-xs" style={{ color: "var(--muted)" }}>Password</label>
@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
         <div className="mt-6 text-center">
           <a href="/" className="text-xs underline" style={{ color: "var(--muted)" }}>← Back to VISION</a>
         </div>
-        <div className="mt-4 text-[11px] text-center" style={{ color: "var(--muted)", opacity: 0.6 }}>Dev: admin / admin123 — production requires ADMIN_PASSWORD_HASH env</div>
+        <div className="mt-4 text-[11px] text-center" style={{ color: "var(--muted)", opacity: 0.6 }}>Login: admin / admin123 or admin123@gmail.com / admin123</div>
       </div>
     </div>
   );

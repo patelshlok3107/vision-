@@ -1,5 +1,5 @@
-/* VISION Service Worker — v1.1.0 — cache app shell, offline fallback, push, update lifecycle */
-const CACHE = "vision-v1.1.0";
+/* VISION Service Worker — v1.1.1 — cache app shell, offline fallback, push, update lifecycle */
+const CACHE = "vision-cache-v1.1.1";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = ["/", OFFLINE_URL, "/manifest.webmanifest", "/version.json"];
 
@@ -20,8 +20,8 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  // Never cache version.json or API
-  if (url.pathname === "/version.json" || url.pathname.startsWith("/api/")) return;
+  // Never cache version.json, API, version, health
+  if (url.pathname === "/version.json" || url.pathname.startsWith("/api/") || url.pathname === "/version" || url.pathname === "/health" || url.pathname.startsWith("/health")) return;
   if (url.origin !== location.origin) return;
 
   // Don't intercept Next.js internals that need fresh network

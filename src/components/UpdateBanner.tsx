@@ -94,12 +94,31 @@ export function UpdateInlineBanner() {
   const [dismissed, setDismissed] = useState(false);
   if (!updateAvailable || dismissed) return null;
   return (
-    <div className="mx-auto w-full max-w-[850px] mb-2 rounded-xl border px-3 py-2 flex items-center justify-between gap-3 text-xs" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}>
-      <span>Update available{latestVersion ? ` — ${latestVersion}` : ""}</span>
+    <div className="mx-auto w-full max-w-[760px] mb-2 rounded-xl border px-3 py-2 flex items-center justify-between gap-3 text-xs" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}>
+      <span>↻ Update available{latestVersion ? ` — ${latestVersion}` : ""}</span>
       <div className="flex gap-2">
         <button onClick={applyUpdate} className="px-3 py-1 rounded-full text-xs font-medium" style={{ background: "var(--text)", color: "var(--bg)" }}>Update</button>
         <button onClick={() => setDismissed(true)} className="px-2 py-1 rounded-full border text-xs" style={{ borderColor: "var(--border)" }}>Later</button>
       </div>
     </div>
+  );
+}
+
+// Tiny header indicator — visible in browser even when floating banner is dismissed
+export function UpdateHeaderIndicator() {
+  const { updateAvailable, latestVersion, applyUpdate } = useAppUpdate();
+  if (!updateAvailable) return null;
+  return (
+    <button
+      onClick={applyUpdate}
+      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border animate-fadeIn"
+      style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+      title={`Update to ${latestVersion || "latest"} now`}
+    >
+      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+      <span className="hidden sm:inline">Update available</span>
+      <span className="sm:hidden">↻</span>
+      <span className="hidden md:inline opacity-60">• {latestVersion || "new"}</span>
+    </button>
   );
 }

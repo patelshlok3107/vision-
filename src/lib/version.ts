@@ -1,6 +1,6 @@
 // Single source of truth for VISION version
-export const APP_VERSION = "1.1.0";
-export const APP_BUILD = "2026-08-28";
+export const APP_VERSION = "1.1.1";
+export const APP_BUILD = "2026-08-29";
 export const APP_NAME = "VISION";
 
 export type VersionInfo = {

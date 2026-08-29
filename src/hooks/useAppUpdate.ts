@@ -148,9 +148,9 @@ export function useAppUpdate() {
     };
   }, [checkForUpdates]);
 
-  // Also detect version mismatch via version.json even without SW
+  // Also detect version mismatch via version.json even without SW — check every 5 min per spec
   useEffect(() => {
-    const interval = setInterval(() => checkForUpdates(), 30 * 60 * 1000); // 30 min
+    const interval = setInterval(() => checkForUpdates(), 5 * 60 * 1000); // 5 min
     return () => clearInterval(interval);
   }, [checkForUpdates]);
 

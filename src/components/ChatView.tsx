@@ -17,6 +17,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import FeatureGateModal from "@/components/FeatureGateModal";
 import AuthHeader from "@/components/AuthHeader";
 import ConnectionStatus from "@/components/ConnectionStatus";
+import { UpdateInlineBanner, UpdateHeaderIndicator } from "@/components/UpdateBanner";
 
 const ALLOWED = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const MAX_IMAGES = 5;
@@ -120,6 +121,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   const bottomRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voice = useVoiceInput({ lang: "en-US" });
   const [health, setHealth] = useState<any>(null);
   const [routerHealth, setRouterHealth] = useState<any>(null);
@@ -148,6 +150,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   const [diagnostics, setDiagnostics] = useState<any | null>(null);
   const [streamStartInfo, setStreamStartInfo] = useState<any | null>(null);
   const [perfTimers, setPerfTimers] = useState<{sendTs: number; streamStartTs: number | null; firstTokenTs: number | null; streamEndTs: number | null} | null>(null);
+  const [retrievedSources, setRetrievedSources] = useState<any[]>([]);
   const [proactive, setProactive] = useState(false);
   const [isPending, startTransition] = useTransition();
   // ── STREAMING OPTIMIZATION: isolated streaming state to avoid re-rendering entire message list per token ──
@@ -210,7 +213,16 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   useEffect(() => { if (typeof window !== "undefined") localStorage.setItem("vision_memory_enabled", String(memoryEnabled)); }, [memoryEnabled]);
 
   useEffect(() => {
-    if (voice.displayText) setInput(voice.displayText);
+    if (voice.displayText) {
+      setInput(voice.displayText);
+      // auto-resize textarea
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+          textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + "px";
+        }
+      }, 0);
+    }
   }, [voice.displayText]);
 
   useEffect(() => {
@@ -303,6 +315,26 @@ export default function ChatView({ conversationId }: { conversationId?: string }
     };
   }, []);
 
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    // auto-resize: min 24px, max 120px (approx 5 lines)
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+      // reset height after send
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+        }
+      }, 0);
+    }
+  };
+
   // File validation
   const addFiles = (files: FileList | File[]) => {
     const arr = Array.from(files);
@@ -393,6 +425,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
     setDiagnostics(null);
     setAgentSteps([]);
     setStreamStartInfo(null);
+    setRetrievedSources([]);
     setPerfTimers({ sendTs: sendStartTs, streamStartTs: null, firstTokenTs: null, streamEndTs: null });
     let firstTokenReceived = false;
     let assistant = "";
@@ -759,8 +792,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
 
   const ollamaOk = health?.ollama?.connected;
   const visionOk = health?.visionModel?.installed && health?.visionModel?.capable;
-  const visionConfigured = health?.visionModel?.configured;
-  const statusLine = !health ? "● Local AI Online" : !ollamaOk ? "○ Local AI Offline" : visionOk ? "● Local AI Online" : "● Local AI Online ○ Vision unavailable";
+  const statusLine = !health ? "● Backend • Checking…" : health?.ollama?.connected === false ? "○ Backend Offline" : health?.ollama?.connected && !visionOk && health?.visionModel?.configured === false ? "● Backend Online • AI Ready" : health?.ollama?.connected && visionOk ? "● Backend Online • AI Ready" : "● Backend Online";
 
   // Empty state
   if (!conversationId && messages.length === 0) {
@@ -871,11 +903,23 @@ export default function ChatView({ conversationId }: { conversationId?: string }
               )}
             </div>
             <input ref={fileRef as any} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = ""; setShowAttachMenu(false); }} />
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSend()} placeholder={voice.isListening ? "Listening..." : "Ask VISION anything..."} className="flex-1 bg-transparent outline-none text-sm" style={{ color: "var(--text)" } as any} aria-label="Ask VISION" />
-            <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={voice.toggle} />
-            {streaming ? <button onClick={handleStop} className="rounded-full px-5 py-2 text-sm shrink-0" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>■ Stop</button> : <button onClick={handleSend} className="rounded-full px-5 py-2 text-sm disabled:opacity-50 shrink-0" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>Send</button>}
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleTextareaChange}
+              onKeyDown={handleTextareaKeyDown}
+              placeholder={voice.isListening ? "Listening..." : "Ask VISION anything..."}
+              rows={1}
+              className="flex-1 bg-transparent outline-none text-sm resize-none max-h-[120px] min-h-[24px] py-2.5 leading-5 placeholder:text-white/30"
+              style={{ color: "var(--text)" } as any}
+              aria-label="Ask VISION"
+            />
+            <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={voice.toggle} size={40} />
+            {streaming ? <button onClick={handleStop} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>■ Stop</button> : <button onClick={() => { handleSend(); if (textareaRef.current) textareaRef.current.style.height = "auto"; }} disabled={!input.trim() && pending.length === 0} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium disabled:opacity-40 min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>Send</button>}
           </div>
-          {voice.isListening && <div className="composer" style={{ border: "none", background: "transparent", justifyContent: "center" }}><VoiceWaveform active /></div>}
+          {voice.isListening && <div className="flex justify-center py-2"><VoiceWaveform active /></div>}
+          <div className="hidden md:flex justify-center mt-2"><span className="text-[10px] tracking-wide" style={{ color: "var(--muted)", opacity: 0.6 }}>↵ Enter to send • Shift+Enter for new line</span></div>
+          <div className="md:hidden flex justify-center mt-1.5"><span className="text-[10px]" style={{ color: "var(--muted)", opacity: 0.5 }}>Tap Send to submit</span></div>
           {voice.error && <div className="text-xs text-red-400 mt-2 text-center">{voice.error} <button onClick={voice.start} className="underline ml-2">Try Again</button></div>}
           {voice.isListening && <div className="text-[10px] tracking-widest text-red-400 mt-1 text-center">● Listening — Microphone active</div>}
         </div>
@@ -891,7 +935,9 @@ export default function ChatView({ conversationId }: { conversationId?: string }
     <div className="chat-area" onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} data-streaming={streaming ? "true" : "false"}>
       {dragOver && <div className="absolute inset-0 z-20 bg-black/70 border-2 border-dashed border-white/20 flex items-center justify-center text-sm rounded-2xl m-4">Drop image to analyze</div>}
       <div className="chat-header hidden md:flex" style={{ justifyContent: "space-between", padding: "0 16px" }}>
-        <div className="w-8" />
+        <div className="flex items-center gap-2">
+          <UpdateHeaderIndicator />
+        </div>
         <div className="text-center">
           <VisionLogo size={28} showText={true} className="justify-center" />
           <div className={`text-xs mt-1 ${!ollamaOk ? "text-red-400" : "text-emerald-300"}`}>{statusLine}</div>
@@ -899,7 +945,10 @@ export default function ChatView({ conversationId }: { conversationId?: string }
         <div className="flex items-center gap-2"><AuthHeader /><ThemeToggle /></div>
       </div>
       {/* Mobile status bar */}
-      <div className="md:hidden flex items-center justify-center py-1.5 border-b text-[11px]" style={{ borderColor: "var(--border)", color: !ollamaOk ? "#ff5c5c" : "#6ee7b7" }}>{statusLine}</div>
+      <div className="md:hidden flex items-center justify-center py-1.5 border-b text-[11px] gap-2" style={{ borderColor: "var(--border)", color: !ollamaOk ? "#ff5c5c" : "#6ee7b7" }}>
+        <span>{statusLine}</span>
+        <UpdateHeaderIndicator />
+      </div>
       {isOffline && <div className="mx-4 mt-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-200 text-center">You're offline. The app shell is available, but AI responses need a connection.</div>}
       {isGuest && (
         <div className="mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs flex justify-between items-center" style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--muted)" }}>
@@ -951,7 +1000,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
               const displayContent = isPlaceholder ? streamingText : m.content;
               const isActiveStreaming = streaming && isPlaceholder;
               return (
-              <div key={m.id} className={`${m.role === "user" ? "ml-auto" : m.role === "tool" ? "" : ""} rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-[90%] md:max-w-[75%] message-enter`} style={m.role==="user" ? { background: "var(--button-bg)", color: "var(--button-text)" } : m.role==="tool" ? {} : { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }} >
+              <div key={m.id} className={`${m.role === "user" ? "message-user" : m.role === "tool" ? "" : "message-assistant"} rounded-2xl px-4 py-3 text-sm leading-relaxed message-enter`} style={m.role==="user" ? { background: "var(--button-bg)", color: "var(--button-text)" } : m.role==="tool" ? {} : { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }} >
                 {m.attachments && m.attachments.length > 0 && <ImageGrid atts={m.attachments} onClick={setViewer} />}
                 {m.role === "tool" ? <ToolBlock content={m.content} tool_name={(m as any).tool_name} tool_args={(m as any).tool_args} tool_result={(m as any).tool_result} /> : <><div className={m.role === "assistant" ? "" : "whitespace-pre-wrap"}>{m.role === "assistant" ? <MarkdownRenderer content={displayContent} isStreaming={isActiveStreaming} /> : m.content}</div>{m.role === "assistant" && displayContent && !m.metadata?.error && !isPlaceholder && (
                   <div className="mt-2 flex gap-1.5 flex-wrap">
@@ -973,7 +1022,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       {showNewMessages && <button onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })} className="mx-auto mb-2 bg-white text-black rounded-full px-4 py-1.5 text-xs">↓ New messages</button>}
       <div className="composer-wrapper">
         {pending.length > 0 && (
-          <div className="w-[min(100%,850px)] mx-auto mb-2 flex gap-2 flex-wrap">
+          <div className="w-[min(100%,760px)] mx-auto mb-2 flex gap-2 flex-wrap">
             {pending.map((p, i) => (
               <div key={i} className="relative">
                 <img src={p.url} alt="preview" className="rounded-xl border border-white/10 object-cover" style={{ width: 80, height: 80, objectFit: "cover" }} />
@@ -1011,12 +1060,24 @@ export default function ChatView({ conversationId }: { conversationId?: string }
             )}
           </div>
           <input ref={fileRef as any} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = ""; setShowAttachMenu(false); }} />
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSend()} placeholder={voice.isListening ? "Listening..." : "Ask VISION anything..."} className="flex-1 bg-transparent outline-none text-sm placeholder:text-white/30" aria-label="Ask VISION" />
-          <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={voice.toggle} />
-          {streaming ? <button onClick={handleStop} className="bg-white text-black rounded-full px-5 py-2 text-sm shrink-0">■ Stop</button> : <button onClick={handleSend} disabled={!input.trim() && pending.length === 0} className="bg-white text-black rounded-full px-5 py-2 text-sm disabled:opacity-50 shrink-0">Send</button>}
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleTextareaChange}
+            onKeyDown={handleTextareaKeyDown}
+            placeholder={voice.isListening ? "Listening..." : "Ask VISION anything..."}
+            rows={1}
+            className="flex-1 bg-transparent outline-none text-sm resize-none max-h-[120px] min-h-[24px] py-2.5 leading-5 placeholder:text-white/30"
+            style={{ color: "var(--text)" } as any}
+            aria-label="Ask VISION"
+          />
+          <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={voice.toggle} size={40} />
+          {streaming ? <button onClick={handleStop} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>■ Stop</button> : <button onClick={() => { handleSend(); if (textareaRef.current) textareaRef.current.style.height = "auto"; }} disabled={!input.trim() && pending.length === 0} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium disabled:opacity-40 min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>Send</button>}
         </div>
         {voice.error && <div className="text-xs text-red-400 mt-2 text-center">{voice.error} <button onClick={voice.start} className="underline ml-2">Try Again</button></div>}
         {voice.isListening && <div className="text-[10px] tracking-widest text-red-400 mt-1 text-center">● Listening — Microphone active</div>}
+        <div className="hidden md:flex justify-center mt-2"><span className="text-[10px] tracking-wide" style={{ color: "var(--muted)", opacity: 0.6 }}>↵ Enter to send • Shift+Enter for new line</span></div>
+        <div className="md:hidden flex justify-center mt-1.5"><span className="text-[10px]" style={{ color: "var(--muted)", opacity: 0.5 }}>Tap Send to submit</span></div>
       </div>
       {viewer && <div onClick={() => setViewer(null)} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onKeyDown={e => e.key === "Escape" && setViewer(null)}><img src={viewer} alt="full" className="max-w-[90vw] max-h-[90vh] rounded-2xl object-contain" /><button aria-label="Close image viewer" className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white text-black grid place-items-center text-sm" style={{ top: "max(16px, env(safe-area-inset-top))", right: "max(16px, env(safe-area-inset-right))" }}>×</button></div>}
       <MemoryPanel open={showMemory} onClose={() => setShowMemory(false)} />

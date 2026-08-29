@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { listConversations, searchConversations, archiveConversation, deleteConversation, renameConversation, type Conversation, clearGuestHistory } from "@/lib/conversations";
 import VisionLogo from "@/components/VisionLogo";
 import { useAuth } from "@/providers/AuthProvider";
+import { UpdateHeaderIndicator } from "@/components/UpdateBanner";
 
 function groupByDate(convs: Conversation[]) {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -128,6 +129,9 @@ export default function ChatHistorySidebar({ activeId, onNewChat }: { activeId?:
         )}
       </div>
 
+      <div className="p-3">
+        <UpdateHeaderIndicator />
+      </div>
       <div className="sidebar-nav p-3 space-y-1 text-xs" style={{ background: "var(--sidebar-bg)", borderColor: "var(--border)", color: "var(--muted)" }}>
         {isAuthenticated ? (
           <>

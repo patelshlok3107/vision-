@@ -150,9 +150,19 @@ export function clearGuestHistory() {
   localStorage.removeItem("vision_guest_history");
 }
 
-export async function streamChat(message: string, conversation_id: string | null, onToken: (t: string) => void, onStatus?: (s: string) => void, attachment_ids?: string[], signal?: AbortSignal, opts?: { mode?: string, memory_enabled?: boolean, onAgentStep?: (step: any) => void, onDiagnostics?: (diag: any) => void, onStreamStart?: (info: any) => void, onSources?: (sources: any[]) => void }) {
+export async function streamChat(message: string, conversation_id: string | null, onToken: (t: string) => void, onStatus?: (s: string) => void, attachment_ids?: string[], signal?: AbortSignal, opts?: { mode?: string, memory_enabled?: boolean, onAgentStep?: (step: any) => void, onDiagnostics?: (diag: any) => void, onStreamStart?: (info: any) => void, onSources?: (sources: any[]) => void, temperature?: number, max_tokens?: number, context_length?: number, streaming?: boolean, use_history_context?: boolean, chat_history_enabled?: boolean, analytics?: boolean, personalization?: boolean, fast_mode?: boolean, use_routing?: boolean, keep_warm?: boolean }) {
   const isGuest = typeof window !== "undefined" && !localStorage.getItem("accessToken") && !localStorage.getItem("access");
   const payload: any = { message, conversation_id, mode: opts?.mode || "auto", memory_enabled: opts?.memory_enabled ?? true };
+  // Forward user settings that affect backend behavior
+  if (opts?.temperature !== undefined) payload.temperature = opts.temperature;
+  if (opts?.max_tokens !== undefined) payload.max_tokens = opts.max_tokens;
+  if (opts?.context_length !== undefined) payload.context_length = opts.context_length;
+  if (opts?.streaming !== undefined) payload.streaming = opts.streaming;
+  if (opts?.use_history_context !== undefined) payload.use_history_context = opts.use_history_context;
+  if (opts?.chat_history_enabled !== undefined) payload.chat_history_enabled = opts.chat_history_enabled;
+  if (opts?.fast_mode !== undefined) payload.fast_mode = opts.fast_mode;
+  if (opts?.use_routing !== undefined) payload.use_routing = opts.use_routing;
+  if (opts?.keep_warm !== undefined) payload.keep_warm = opts.keep_warm;
   if (attachment_ids && attachment_ids.length) payload.attachment_ids = attachment_ids;
   if (isGuest) {
     const gh = getGuestHistory();

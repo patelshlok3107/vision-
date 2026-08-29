@@ -300,12 +300,11 @@ export default function SettingsPage(){
   );
   const renderPerformance = () => (
     <div className="space-y-4">
-      <Section title="Performance" desc="Latency and resource usage">
+      <Section title="Performance" desc="Latency and resource usage — changes apply to next message">
         <Row label="Fast response mode" desc="Use smaller model for quick answers"><Switch checked={settings.fast_mode} onChange={v=> update({fast_mode:v})} /></Row>
         <Row label="Use model routing" desc="Automatically select best model per task"><Switch checked={settings.use_routing} onChange={v=> update({use_routing:v})} /></Row>
         <Row label="Keep model warm" desc="Keeping the model warm can reduce response startup time but may use more memory."><Switch checked={settings.keep_warm} onChange={v=> update({keep_warm:v})} /></Row>
-        <Row label="Stream responses" desc="Show tokens as they arrive"><Switch checked={settings.streaming} onChange={v=> update({streaming:v})} /></Row>
-        <Row label="Maximum generation tokens" desc={`${settings.max_tokens} tokens`}>
+        <Row label="Maximum generation tokens" desc={`${settings.max_tokens} tokens — applies to next message`}>
           <input type="range" min={256} max={4096} step={256} value={settings.max_tokens} onChange={e=> update({max_tokens: parseInt(e.target.value)})} className="w-32" />
         </Row>
         <div className="mt-4 grid grid-cols-3 gap-3">

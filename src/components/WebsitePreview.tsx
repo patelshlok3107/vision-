@@ -28,6 +28,8 @@ export default function WebsitePreview({ html, css, js, onClose }: WebsitePrevie
       }]);
     }
 
+    const reducedMotionStyle = `<style>@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }</style>`;
+
     const scriptLogger = `<script>
 (function(){
   var send=function(t,a){try{var m=Array.from(a).map(function(x){return typeof x==='object'?JSON.stringify(x):String(x);}).join(' ');window.parent.postMessage({type:'CONSOLE_LOG',level:t,msg:m},'*');}catch(e){}};
@@ -40,8 +42,27 @@ export default function WebsitePreview({ html, css, js, onClose }: WebsitePrevie
 </script>`;
 
     let srcDoc = html;
-    if (!srcDoc.toLowerCase().includes("<html")) {
-      srcDoc = `<!DOCTYPE html><html><head></head><body>${srcDoc}</body></html>`;
+    const hasHtmlTag = srcDoc.toLowerCase().includes("<html");
+    const hasHead = srcDoc.toLowerCase().includes("<head");
+    const hasBody = srcDoc.toLowerCase().includes("<body");
+
+    if (!hasHtmlTag) {
+      // No html wrapper — treat html as body content, css/js will be injected
+      srcDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${reducedMotionStyle}</head><body>${srcDoc}</body></html>`;
+    } else {
+      // Ensure viewport and reduced-motion are present
+      if (!srcDoc.toLowerCase().includes("viewport")) {
+        if (hasHead) {
+          srcDoc = srcDoc.replace(/<head[^>]*>/i, (m) => `${m}<meta name="viewport" content="width=device-width,initial-scale=1">`);
+        }
+      }
+      // Inject reduced motion style into head
+      if (hasHead) {
+        srcDoc = srcDoc.replace(/<\/head>/i, `${reducedMotionStyle}</head>`);
+      } else if (hasHtmlTag) {
+        // No head but has html — inject after <html>
+        srcDoc = srcDoc.replace(/<html[^>]*>/i, (m) => `${m}<head>${reducedMotionStyle}</head>`);
+      }
     }
 
     if (css) {
@@ -65,6 +86,9 @@ export default function WebsitePreview({ html, css, js, onClose }: WebsitePrevie
       } else {
         srcDoc = srcDoc + finalJs;
       }
+    } else {
+      // Even when no separate js, still need logger — already injected above
+      // If srcDoc didn't have head, logger already added
     }
 
     if (iframeRef.current) {

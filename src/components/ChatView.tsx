@@ -18,6 +18,7 @@ import FeatureGateModal from "@/components/FeatureGateModal";
 import AuthHeader from "@/components/AuthHeader";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import { UpdateInlineBanner, UpdateHeaderIndicator } from "@/components/UpdateBanner";
+import { getLocalSettings, saveLocalSettings } from "@/lib/settings";
 
 const ALLOWED = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const MAX_IMAGES = 5;
@@ -127,18 +128,21 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   const [routerHealth, setRouterHealth] = useState<any>(null);
   const [lastFailed, setLastFailed] = useState<{ text: string, attachment_ids: string[], convId: string | null } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  // Phase 4: Mode + Memory (persisted) — clean UI with Auto default
+  // Phase 4: Mode + Memory — uses AppSettings as source of truth, falls back to legacy keys
   const [mode, setMode] = useState<VISIONMode>(() => {
     if (typeof window !== "undefined") {
-      const v = localStorage.getItem("vision_mode") || localStorage.getItem("vision_think_mode") as VISIONMode;
-      return (v as VISIONMode) || "auto";
+      const legacy = localStorage.getItem("vision_mode") || localStorage.getItem("vision_think_mode") as VISIONMode;
+      if (legacy) return legacy as VISIONMode;
+      try { const s = getLocalSettings(); if (s.default_mode) return s.default_mode as VISIONMode; } catch {}
+      return "auto";
     }
     return "auto";
   });
   const [memoryEnabled, setMemoryEnabled] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      const v = localStorage.getItem("vision_memory_enabled");
-      return v === null ? true : v === "true";
+      const legacy = localStorage.getItem("vision_memory_enabled");
+      if (legacy !== null) return legacy === "true";
+      try { return getLocalSettings().memory_enabled ?? true; } catch { return true; }
     }
     return true;
   });
@@ -209,8 +213,24 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       }
     }
   }, []);
-  useEffect(() => { if (typeof window !== "undefined") localStorage.setItem("vision_mode", mode); }, [mode]);
-  useEffect(() => { if (typeof window !== "undefined") localStorage.setItem("vision_memory_enabled", String(memoryEnabled)); }, [memoryEnabled]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vision_mode", mode);
+      try { saveLocalSettings({ default_mode: mode }); } catch {}
+    }
+  }, [mode]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vision_memory_enabled", String(memoryEnabled));
+      try { saveLocalSettings({ memory_enabled: memoryEnabled }); } catch {}
+    }
+  }, [memoryEnabled]);
+
+  // Sync server settings on auth (ensures theme/voice persist across logins)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    try { import("@/lib/settings").then(m => m.fetchRemoteSettings().catch(()=>{})).catch(()=>{}); } catch {}
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (voice.displayText) {
@@ -284,6 +304,13 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   };
 
   useEffect(() => {
+    try {
+      const s = getLocalSettings();
+      if (!s.auto_scroll) {
+        if (messages.length > 0 && !isNearBottom()) setShowNewMessages(true);
+        return;
+      }
+    } catch {}
     if (isNearBottom()) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       setShowNewMessages(false);
@@ -323,15 +350,18 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   };
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-      // reset height after send
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.style.height = "auto";
-        }
-      }, 0);
+    if (e.key !== "Enter") return;
+    try {
+      const s = getLocalSettings();
+      const enterToSend = s.enter_to_send ?? true;
+      const shouldSend = enterToSend ? !e.shiftKey : (e.ctrlKey || e.metaKey);
+      if (shouldSend) {
+        e.preventDefault();
+        handleSend();
+        setTimeout(() => { if (textareaRef.current) textareaRef.current.style.height = "auto"; }, 0);
+      }
+    } catch {
+      if (!e.shiftKey) { e.preventDefault(); handleSend(); setTimeout(() => { if (textareaRef.current) textareaRef.current.style.height = "auto"; }, 0); }
     }
   };
 
@@ -567,6 +597,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       }, (s) => setStatus(s), attachment_ids.length ? attachment_ids : undefined, abortRef.current.signal, {
         mode: mode,
         memory_enabled: memoryEnabled,
+        ...(() => { try { const s = getLocalSettings(); return { temperature: s.temperature, max_tokens: s.max_tokens, context_length: s.context_length, streaming: s.streaming, use_history_context: s.use_history_context, chat_history_enabled: s.chat_history_enabled, fast_mode: s.fast_mode, use_routing: s.use_routing, keep_warm: s.keep_warm }; } catch { return {}; } })(),
         onAgentStep: (st: any) => setAgentSteps(prev => [...prev, st]),
         onDiagnostics: (diag: any) => {
           setDiagnostics(diag);
@@ -596,22 +627,46 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       }
       setStreamingText("");
       streamingAccumRef.current = "";
-      // Notify if backgrounded and response completed — use VISION logo
+      // Notify if backgrounded — respects notification settings
       try {
         if (typeof document !== "undefined" && document.hidden && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && finalText) {
-          const isCode = finalText.includes("```") || /<\/?html|function |const |import /.test(finalText);
-          const isImage = pendingSnapshot.length > 0 || finalText.toLowerCase().includes("image");
-          let body = "Your response is ready.";
-          let tag = "vision-chat";
-          if (isCode) { body = "Your code is ready."; tag = "vision-code"; }
-          else if (isImage) { body = "Image analysis completed."; tag = "vision-image"; }
-          // Use service worker notification with VISION logo where supported
-          if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.ready.then(reg => {
-              reg.showNotification("VISION", { body, icon: "/icons/icon-192.png", badge: "/icons/icon-72.png", tag, data: { url: newConvId ? `/chat/${newConvId}` : "/chat" } }).catch(()=>{});
-            }).catch(()=>{});
+          let allowed = true;
+          try {
+            const ns = getLocalSettings();
+            const isCode = finalText.includes("```") || /<\/?html|function |const |import /.test(finalText);
+            const isImage = pendingSnapshot.length > 0 || finalText.toLowerCase().includes("image");
+            const isAgent = (streamPathRef.current === "agent") || agentSteps.length > 0;
+            if (isCode && ns.notif_build_complete === false) allowed = false;
+            else if (isAgent && ns.notif_agent_complete === false) allowed = false;
+            else if (ns.notif_ai_complete === false) allowed = false;
+            if (ns.notif_system === false) allowed = false;
+          } catch {}
+          if (!allowed) {
+            // skip notification per user preference
           } else {
-            new Notification("VISION", { body });
+            const isCode = finalText.includes("```") || /<\/?html|function |const |import /.test(finalText);
+            const isImage = pendingSnapshot.length > 0 || finalText.toLowerCase().includes("image");
+            let body = "Your response is ready.";
+            let tag = "vision-chat";
+            if (isCode) { body = "Your code is ready."; tag = "vision-code"; }
+            else if (isImage) { body = "Image analysis completed."; tag = "vision-image"; }
+            if ("serviceWorker" in navigator) {
+              navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification("VISION", { body, icon: "/icons/icon-192.png", badge: "/icons/icon-72.png", tag, data: { url: newConvId ? `/chat/${newConvId}` : "/chat" } }).catch(()=>{});
+              }).catch(()=>{});
+            } else {
+              new Notification("VISION", { body });
+            }
+          }
+        }
+      } catch {}
+      // Autoplay voice if enabled
+      try {
+        const s = getLocalSettings();
+        if (s.autoplay_voice && s.voice_enabled && finalText) {
+          // Don't autoplay very long code blocks automatically — only short/medium responses
+          if (finalText.length < 3000) {
+            setTimeout(() => { try { speak(finalText, streamIdFixed); } catch {} }, 400);
           }
         }
       } catch {}
@@ -733,13 +788,25 @@ export default function ChatView({ conversationId }: { conversationId?: string }
     if (isNearBottom()) setShowNewMessages(false);
   };
 
-  // TTS — Phase 1 voice output (browser SpeechSynthesis, local)
+  // TTS — respects voice_enabled, voice_id, speech_speed
   const speak = (text: string, id: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try { if (!getLocalSettings().voice_enabled) return; } catch {}
     window.speechSynthesis.cancel();
     if (speakingId === id) { setSpeakingId(null); return; }
     const u = new SpeechSynthesisUtterance(text.slice(0, 4000));
-    u.rate = 1; u.onstart = () => setSpeakingId(id); u.onend = () => setSpeakingId(null); u.onerror = () => setSpeakingId(null);
+    try {
+      const s = getLocalSettings();
+      const speedMap: any = { "0.75x": 0.75, "1x": 1, "1.25x": 1.25, "1.5x": 1.5, "2x": 2 };
+      u.rate = speedMap[s.speech_speed] ?? 1;
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length && s.voice_id && s.voice_id !== "system") {
+        const want = s.voice_id.toLowerCase().includes("female") ? "female" : "male";
+        const match = voices.find(v => v.name.toLowerCase().includes(want)) || voices.find(v => v.name.toLowerCase().includes("english"));
+        if (match) u.voice = match;
+      }
+    } catch { u.rate = 1; }
+    u.onstart = () => setSpeakingId(id); u.onend = () => setSpeakingId(null); u.onerror = () => setSpeakingId(null);
     window.speechSynthesis.speak(u);
   };
   const copyMsg = async (text: string, id: string) => {
@@ -852,11 +919,13 @@ export default function ChatView({ conversationId }: { conversationId?: string }
               <VisionLogo size={56} showText={true} showSubtitle={true} className="mb-2" />
               <div className="text-xs text-emerald-300 mt-1">● Local AI Online</div>
               <h2 className="text-xl font-light mt-6">What can I help you with?</h2>
+              {(() => { try { return getLocalSettings().show_suggested_prompts !== false; } catch { return true; } })() && (
               <div className="mt-6 grid grid-cols-2 gap-2 text-xs max-w-xs mx-auto">
                 {["Explain something", "Write some code", "Analyze an image", "Help me solve a problem"].map(s => (
                   <button key={s} onClick={() => setInput(s)} className="rounded-full px-4 py-2 transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text)", background: "transparent" }} onMouseEnter={e=>{ e.currentTarget.style.background="var(--button-bg)"; e.currentTarget.style.color="var(--button-text)"}} onMouseLeave={e=>{ e.currentTarget.style.background="transparent"; e.currentTarget.style.color="var(--text)"}}>{s}</button>
                 ))}
               </div>
+              )}
               <div className="text-xs mt-4" style={{ color: "var(--muted)" }}>Images are processed locally by Ollama</div>
             </div>
           </div>
@@ -914,11 +983,11 @@ export default function ChatView({ conversationId }: { conversationId?: string }
               style={{ color: "var(--text)" } as any}
               aria-label="Ask VISION"
             />
-            <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={voice.toggle} size={40} />
+            {(() => { try { if (getLocalSettings().voice_enabled === false) return <button disabled title="Voice disabled — enable in Settings → Voice" className="h-10 w-10 rounded-full grid place-items-center shrink-0 opacity-40 border text-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>🎙</button>; } catch {} return <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={()=>{ try{ if(!getLocalSettings().voice_enabled) return; }catch{}; voice.toggle(); }} size={40} />; })()}
             {streaming ? <button onClick={handleStop} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>■ Stop</button> : <button onClick={() => { handleSend(); if (textareaRef.current) textareaRef.current.style.height = "auto"; }} disabled={!input.trim() && pending.length === 0} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium disabled:opacity-40 min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>Send</button>}
           </div>
           {voice.isListening && <div className="flex justify-center py-2"><VoiceWaveform active /></div>}
-          <div className="hidden md:flex justify-center mt-2"><span className="text-[10px] tracking-wide" style={{ color: "var(--muted)", opacity: 0.6 }}>↵ Enter to send • Shift+Enter for new line</span></div>
+          <div className="hidden md:flex justify-center mt-2"><span className="text-[10px] tracking-wide" style={{ color: "var(--muted)", opacity: 0.6 }}>{(() => { try { return getLocalSettings().enter_to_send === false ? "Ctrl+Enter to send • Enter for new line" : "↵ Enter to send • Shift+Enter for new line"; } catch { return "↵ Enter to send • Shift+Enter for new line"; } })()}</span></div>
           <div className="md:hidden flex justify-center mt-1.5"><span className="text-[10px]" style={{ color: "var(--muted)", opacity: 0.5 }}>Tap Send to submit</span></div>
           {voice.error && <div className="text-xs text-red-400 mt-2 text-center">{voice.error} <button onClick={voice.start} className="underline ml-2">Try Again</button></div>}
           {voice.isListening && <div className="text-[10px] tracking-widest text-red-400 mt-1 text-center">● Listening — Microphone active</div>}
@@ -989,7 +1058,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       <div ref={messagesRef} onScroll={handleScroll} className="messages-container">
         <div className="chat-content">
           <div className="message-list">
-            {status && <div className="text-center text-xs text-white/40 py-2 flex justify-center items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> <ThinkingDots text={status.replace(/\.\.\./g, "")} /></div>}
+            {(() => { try { return getLocalSettings().show_generation_status !== false; } catch { return true; } })() && status && <div className="text-center text-xs text-white/40 py-2 flex justify-center items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> <ThinkingDots text={status.replace(/\.\.\./g, "")} /></div>}
             {!status && (() => { const lastMsg = messages[messages.length - 1]; return lastMsg && lastMsg.role === "assistant" && lastMsg.content === "" && lastMsg.metadata?.isStreamingPlaceholder; })() && <div className="text-center text-xs text-white/30 py-2"><span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /></div>}
             {agentSteps.length > 0 && <div className="mx-2 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs"><div className="font-medium text-amber-300">● Autonomous agent — {agentSteps.length} steps</div>{agentSteps.map((s: any, i: number) => <div key={i} className="flex gap-2 mt-1 text-white/70"><span className="text-emerald-400">✓</span> Step {s.step}/{s.max}: {s.tool} — {JSON.stringify(s.args).slice(0, 80)}</div>)}<div className="text-white/30 mt-1 text-[11px]">Showing high-level progress, not chain-of-thought</div></div>}
             {proactive && !streaming && <div className="mx-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs flex justify-between items-center"><span className="text-emerald-200">💡 VISION proactive: You've been idle. Want me to review your workspace for opportunities?</span><div className="flex gap-2"><button onClick={() => { setProactive(false); setInput("Review my workspace and suggest improvements"); }} className="px-3 py-1 rounded-full bg-white text-black text-xs">Review</button><button onClick={() => setProactive(false)} className="text-white/50">Dismiss</button></div></div>}
@@ -1071,12 +1140,12 @@ export default function ChatView({ conversationId }: { conversationId?: string }
             style={{ color: "var(--text)" } as any}
             aria-label="Ask VISION"
           />
-          <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={voice.toggle} size={40} />
+          {(() => { try { if (getLocalSettings().voice_enabled === false) return <button disabled title="Voice disabled — enable in Settings → Voice" className="h-10 w-10 rounded-full grid place-items-center shrink-0 opacity-40 border text-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}>🎙</button>; } catch {} return <VoiceMicButton isListening={voice.isListening} state={voice.state} onToggle={()=>{ try{ if(!getLocalSettings().voice_enabled) return; }catch{}; voice.toggle(); }} size={40} />; })()}
           {streaming ? <button onClick={handleStop} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>■ Stop</button> : <button onClick={() => { handleSend(); if (textareaRef.current) textareaRef.current.style.height = "auto"; }} disabled={!input.trim() && pending.length === 0} className="rounded-full px-5 py-2.5 text-sm shrink-0 font-medium disabled:opacity-40 min-h-[40px] min-w-[72px]" style={{ background: "var(--button-bg)", color: "var(--button-text)" }}>Send</button>}
         </div>
         {voice.error && <div className="text-xs text-red-400 mt-2 text-center">{voice.error} <button onClick={voice.start} className="underline ml-2">Try Again</button></div>}
         {voice.isListening && <div className="text-[10px] tracking-widest text-red-400 mt-1 text-center">● Listening — Microphone active</div>}
-        <div className="hidden md:flex justify-center mt-2"><span className="text-[10px] tracking-wide" style={{ color: "var(--muted)", opacity: 0.6 }}>↵ Enter to send • Shift+Enter for new line</span></div>
+        <div className="hidden md:flex justify-center mt-2"><span className="text-[10px] tracking-wide" style={{ color: "var(--muted)", opacity: 0.6 }}>{(() => { try { return getLocalSettings().enter_to_send === false ? "Ctrl+Enter to send • Enter for new line" : "↵ Enter to send • Shift+Enter for new line"; } catch { return "↵ Enter to send • Shift+Enter for new line"; } })()}</span></div>
         <div className="md:hidden flex justify-center mt-1.5"><span className="text-[10px]" style={{ color: "var(--muted)", opacity: 0.5 }}>Tap Send to submit</span></div>
       </div>
       {viewer && <div onClick={() => setViewer(null)} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onKeyDown={e => e.key === "Escape" && setViewer(null)}><img src={viewer} alt="full" className="max-w-[90vw] max-h-[90vh] rounded-2xl object-contain" /><button aria-label="Close image viewer" className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white text-black grid place-items-center text-sm" style={{ top: "max(16px, env(safe-area-inset-top))", right: "max(16px, env(safe-area-inset-right))" }}>×</button></div>}

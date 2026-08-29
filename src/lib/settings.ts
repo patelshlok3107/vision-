@@ -55,6 +55,16 @@ export function applySettingsSideEffects(s: AppSettings) {
   document.documentElement.dataset.density = s.chat_density;
   if (s.reduce_motion) document.documentElement.style.setProperty("--transition","0s");
   else document.documentElement.style.removeProperty("--transition");
+  // Language
+  try { document.documentElement.lang = s.language || "en"; } catch {}
+  // Animations — when disabled, kill all motion
+  if (!s.animations || s.reduce_motion) {
+    document.documentElement.style.setProperty("--animation-duration","0s");
+    document.documentElement.style.setProperty("--transition","0s");
+  } else {
+    document.documentElement.style.removeProperty("--animation-duration");
+    if (!s.reduce_motion) document.documentElement.style.removeProperty("--transition");
+  }
 }
 export async function fetchRemoteSettings(): Promise<AppSettings|null> {
   const t = typeof window!=="undefined" ? localStorage.getItem("accessToken") : null;

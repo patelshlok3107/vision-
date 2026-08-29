@@ -6,6 +6,7 @@ import { listConversations, searchConversations, archiveConversation, deleteConv
 import VisionLogo from "@/components/VisionLogo";
 import { useAuth } from "@/providers/AuthProvider";
 import { UpdateHeaderIndicator } from "@/components/UpdateBanner";
+import { getLocalSettings } from "@/lib/settings";
 
 function groupByDate(convs: Conversation[]) {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -116,7 +117,7 @@ export default function ChatHistorySidebar({ activeId, onNewChat }: { activeId?:
                         <div className="absolute right-0 top-9 rounded-xl py-1 text-xs z-20 w-36 shadow-large" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                           <button onClick={()=>{ setRenameVal(c.title); setRenameId(c.id); setMenu(null);}} className="w-full text-left px-3 py-2 hover:opacity-80" style={{ color: "var(--text)" }}>Rename</button>
                           <button onClick={async()=>{ await archiveConversation(c.id); setMenu(null); refresh();}} className="w-full text-left px-3 py-2 hover:opacity-80" style={{ color: "var(--text)" }}>Archive</button>
-                          <button onClick={async()=>{ if(confirm("Delete this conversation? This will permanently remove it and its messages.")){ await deleteConversation(c.id); setMenu(null); if(activeId===c.id) router.push("/chat"); refresh();}}} className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-400">Delete</button>
+                          <button onClick={async()=>{ try{ const s=getLocalSettings(); const needConfirm=s.confirm_delete!==false; if(!needConfirm || confirm("Delete this conversation? This will permanently remove it and its messages.")){ await deleteConversation(c.id); setMenu(null); if(activeId===c.id) router.push("/chat"); refresh();}} catch{ if(confirm("Delete this conversation? This will permanently remove it and its messages.")){ await deleteConversation(c.id); setMenu(null); if(activeId===c.id) router.push("/chat"); refresh();}}}} className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-400">Delete</button>
                         </div>
                       )}
                     </div>

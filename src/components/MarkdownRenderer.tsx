@@ -119,12 +119,12 @@ export default function MarkdownRenderer({ content, isStreaming = false }: { con
     );
   }
 
-  // Extract blocks for unified preview
+  // Extract blocks for unified preview - supports single html file with inline CSS/JS (preferred) or split blocks
   const htmlMatches = Array.from(content.matchAll(/```html\n([\s\S]*?)```/gi)).map(m => m[1]);
   const cssMatches = Array.from(content.matchAll(/```css\n([\s\S]*?)```/gi)).map(m => m[1]);
   const jsMatches = Array.from(content.matchAll(/```(?:javascript|js)\n([\s\S]*?)```/gi)).map(m => m[1]);
 
-  const hasWebProject = htmlMatches.length > 0 || (content.includes("<!DOCTYPE") && content.includes("html>"));
+  const hasWebProject = htmlMatches.length > 0 || cssMatches.length > 0 || (content.includes("<!DOCTYPE") && content.includes("html>")) || (content.includes("<html") && htmlMatches.length === 0 && (cssMatches.length > 0 || jsMatches.length > 0));
 
   return (
     <div className="prose prose-invert max-w-none prose-sm prose-p:leading-relaxed prose-headings:font-medium prose-a:text-emerald-300 prose-strong:text-white prose-code:text-emerald-200 prose-pre:bg-transparent prose-pre:p-0">
@@ -158,9 +158,9 @@ export default function MarkdownRenderer({ content, isStreaming = false }: { con
 
       {showWebsitePreview && (
         <WebsitePreview
-          html={htmlMatches.join('\\n')}
-          css={cssMatches.join('\\n')}
-          js={jsMatches.join('\\n')}
+          html={htmlMatches.join('\n')}
+          css={cssMatches.join('\n')}
+          js={jsMatches.join('\n')}
           onClose={() => setShowWebsitePreview(false)}
         />
       )}

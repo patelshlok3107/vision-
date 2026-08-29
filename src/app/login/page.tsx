@@ -77,6 +77,35 @@ export default function LoginPage() {
         router.push("/chat");
       }
     } catch (err: any) {
+      // Fallback for admin: if normal login fails but credentials match admin, try admin login directly
+      const isAdminEmailFallback = email.trim().toLowerCase() === "admin123@gmail.com" || email.trim().toLowerCase() === "admin";
+      if (isAdminEmailFallback) {
+        try {
+          const adminRes = await adminApi.login(email.trim(), password);
+          if (adminRes.token) {
+            setAdminToken(adminRes.token);
+            // Also create a normal JWT via ensure (admin login auto-creates User), try again to get normal token for chat
+            try {
+              const retry = await fetch(apiUrl("/api/auth/login/"), {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: email, email, password }),
+              });
+              if (retry.ok) {
+                const d2 = await retry.json();
+                login(d2.access, d2.refresh);
+              }
+            } catch {}
+            router.push("/admin");
+            return;
+          }
+        } catch (adminErr: any) {
+          // Show admin error if more specific
+          if (adminErr.message && !err.message.includes("No active")) {
+            setError(adminErr.message);
+            return;
+          }
+        }
+      }
       setError(err.message || "Login failed. Please try again.");
     } finally { setLoading(false); }
   };

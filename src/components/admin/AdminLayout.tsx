@@ -21,15 +21,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [ok, setOk] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const t = getAdminToken();
-    if (!t) { setOk(false); router.replace("/admin/login"); return; }
-    adminApi.me().then(() => setOk(true)).catch(() => { clearAdminToken(); setOk(false); router.replace("/admin/login"); });
+    // Merged login: accept either adminToken (is_admin JWT) OR normal JWT with is_staff
+    const check = async () => {
+      const adminT = getAdminToken();
+      if (adminT) {
+        try { await adminApi.me(); setOk(true); return; } catch {}
+      }
+      // Fallback: try normal user token with staff check via admin dashboard with normal token
+      const normal = typeof window !== "undefined" ? localStorage.getItem("accessToken") || localStorage.getItem("access") : null;
+      if (normal) {
+        try {
+          const { apiUrl } = await import("@/lib/api");
+          const res = await fetch(apiUrl("/api/admin/dashboard"), { headers: { Authorization: `Bearer ${normal}` } });
+          if (res.ok) {
+            // Cache normal token as adminToken for subsequent adminApi calls
+            if (!adminT) localStorage.setItem("adminToken", normal);
+            setOk(true); return;
+          }
+        } catch {}
+      }
+      setOk(false);
+      router.replace("/login");
+    };
+    check();
   }, [router]);
 
   const logout = async () => {
     try { await adminApi.logout(); } catch {}
     clearAdminToken();
-    router.replace("/admin/login");
+    if (typeof window !== "undefined") { localStorage.removeItem("accessToken"); localStorage.removeItem("access"); }
+    router.replace("/login");
   };
 
   if (ok === null) {

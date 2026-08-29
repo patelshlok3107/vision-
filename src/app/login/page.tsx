@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import VisionLogo from "@/components/VisionLogo";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/providers/AuthProvider";
+import { adminApi, setAdminToken } from "@/lib/admin";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -40,6 +41,30 @@ export default function LoginPage() {
       }
       const data = await res.json();
       login(data.access, data.refresh);
+      // Merged admin login: if admin email, also obtain admin token and go to /admin
+      const isAdminEmail = email.trim().toLowerCase() === "admin123@gmail.com" || email.trim().toLowerCase() === "admin";
+      if (isAdminEmail) {
+        try {
+          const adminRes = await adminApi.login(email.trim(), password);
+          if (adminRes.token) {
+            setAdminToken(adminRes.token);
+            router.push("/admin");
+            return;
+          }
+        } catch {}
+        // Fallback: if user is staff, still allow /admin via normal JWT (permission accepts staff)
+        try {
+          // Check if normal token is staff by hitting admin dashboard with normal token
+          const check = await fetch(apiUrl("/api/admin/dashboard"), { headers: { Authorization: `Bearer ${data.access}` } });
+          if (check.ok) {
+            // Store normal token as admin fallback (AdminLayout will accept it)
+            // Also store as adminToken for AdminLayout convenience
+            setAdminToken(data.access);
+            router.push("/admin");
+            return;
+          }
+        } catch {}
+      }
       // If guest history exists, keep it for migration prompt; otherwise go to last chat or /chat
       const last = localStorage.getItem("vision_last_chat_id");
       const hasGuest = (() => { try { const g = localStorage.getItem("vision_guest_history"); return g && JSON.parse(g).length > 0; } catch { return false; } })();

@@ -3,7 +3,7 @@ import { apiUrl } from "@/lib/api";
 
 function adminHeader(): Record<string, string> {
   if (typeof window === "undefined") return {};
-  const t = localStorage.getItem("adminToken") || "";
+  const t = localStorage.getItem("adminToken") || localStorage.getItem("accessToken") || localStorage.getItem("access") || "";
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 

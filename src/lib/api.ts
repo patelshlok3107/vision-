@@ -8,9 +8,13 @@ export function getApiBase(): string {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
     if (host === "localhost" || host === "127.0.0.1") return "http://127.0.0.1:8000";
-    // Production: no env at runtime means build missed NEXT_PUBLIC_API_URL — warn
-    if (host.includes("vercel.app") || host.includes("vision")) {
-      console.warn("[VISION] NEXT_PUBLIC_API_URL is not set — API calls will use relative path. Set it in Vercel → Environment Variables → Production → NEXT_PUBLIC_API_URL=https://<your-render>.onrender.com and redeploy.");
+    // Production fallback: if env not set at build, use hard-coded Render backend so /admin/login doesn't 404 on Vercel
+    if (host.includes("vercel.app")) {
+      return "https://vision-backend-llzj.onrender.com";
+    }
+    if (host.includes("vision")) {
+      console.warn("[VISION] NEXT_PUBLIC_API_URL is not set — using fallback Render URL. Set it in Vercel → Environment Variables → Production → NEXT_PUBLIC_API_URL=https://vision-backend-llzj.onrender.com and redeploy.");
+      return "https://vision-backend-llzj.onrender.com";
     }
     return "";
   }

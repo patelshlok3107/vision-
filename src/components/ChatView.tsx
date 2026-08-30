@@ -11,6 +11,7 @@ import type { VISIONMode } from "@/components/ModeSelector";
 import MemoryPanel from "@/components/MemoryPanel";
 import WorkspacePanel from "@/components/WorkspacePanel";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import ImageGenerationSkeleton from "@/components/ImageGenerationSkeleton";
 import VisionLogo from "@/components/VisionLogo";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/providers/AuthProvider";
@@ -342,6 +343,18 @@ export default function ChatView({ conversationId }: { conversationId?: string }
     };
   }, []);
 
+  // Regenerate image listener — sets input and focuses for quick send
+  useEffect(() => {
+    const handler = (e: any) => {
+      const prompt = e.detail?.prompt;
+      const text = prompt ? `Generate a new variation: ${prompt}` : "Generate a variation of the previous image with a fresh perspective";
+      setInput(text);
+      setTimeout(() => textareaRef.current?.focus(), 60);
+    };
+    window.addEventListener("vision:regenerate-image" as any, handler);
+    return () => window.removeEventListener("vision:regenerate-image" as any, handler);
+  }, []);
+
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     // auto-resize: min 24px, max 120px (approx 5 lines)
@@ -567,6 +580,8 @@ export default function ChatView({ conversationId }: { conversationId?: string }
               const tok = j.content || "";
               if (tok) { assistant += tok; streamingAccumRef.current += tok; if (!firstTokenReceived) { firstTokenReceived = true; setPerfTimers(prev => prev ? { ...prev, firstTokenTs: Date.now() } : prev); } const path = streamPathRef.current; if (path === "ultra_fast" || path === "simple" || path === "code" || path === "heavy" || path === "guest") setStreamingText(streamingAccumRef.current); else { if (!rafRef.current) rafRef.current = requestAnimationFrame(() => { rafRef.current = null; setStreamingText(streamingAccumRef.current); }); } setStatus(""); }
             } else if (j.type === "status") setStatus(j.content);
+            else if (j.type === "image_generating") { setStatus("Creating your image..."); streamPathRef.current = "image_generation"; setStreamStartInfo({ path: "image_generation" }); }
+            else if (j.type === "image") { const tok = `![Generated Image](${j.content.url || j.content})\n`; assistant += tok; streamingAccumRef.current += tok; setStreamingText(streamingAccumRef.current); setStatus(""); }
             else if (j.type === "done" && j.conversation_id) returnedId = j.conversation_id;
             else if (j.type === "error") throw new Error(j.content);
           }
@@ -602,6 +617,14 @@ export default function ChatView({ conversationId }: { conversationId?: string }
         onDiagnostics: (diag: any) => {
           setDiagnostics(diag);
           setPerfTimers(prev => prev ? { ...prev, streamEndTs: Date.now() } : prev);
+        },
+        onImage: (data: any) => {
+          const url = data.url || data;
+          const tok = `![Generated Image](${url})\n`;
+          assistant += tok; streamingAccumRef.current += tok; setStreamingText(streamingAccumRef.current); setStatus("");
+        },
+        onImageGenerating: (data: any) => {
+          setStatus("Creating your image..."); streamPathRef.current = "image_generation"; setStreamStartInfo({ path: "image_generation" });
         },
         onStreamStart: (info: any) => {
           streamPathRef.current = info?.path || null;
@@ -944,10 +967,10 @@ export default function ChatView({ conversationId }: { conversationId?: string }
             </div>
           )}
           <div className="composer">
-            <div className="relative">
+            <div className="relative" style={{ overflow: "visible" }}>
               <button onClick={() => setShowAttachMenu(v => !v)} className="h-9 w-9 rounded-full grid place-items-center shrink-0 transition" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} onMouseEnter={e=> e.currentTarget.style.background="var(--surface-hover)"} onMouseLeave={e=> e.currentTarget.style.background="var(--surface)"} aria-label="Attach">＋</button>
               {showAttachMenu && (
-                <div className="absolute bottom-12 left-0 bg-[#111113] border border-white/10 rounded-2xl shadow-xl overflow-hidden z-20 w-[280px] text-sm">
+                <div className="absolute bottom-12 left-0 bg-[#111113] border border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 w-[280px] text-sm" style={{ maxWidth: "280px" }}>
                   <div className="px-3 py-2 text-[10px] tracking-widest" style={{color:"var(--muted)"}}>ATTACH</div>
                   <button onClick={() => { setShowAttachMenu(false); fileRef.current?.click(); }} className="w-full text-left px-3 py-2.5 hover:bg-white/5 flex items-center gap-2">📷 <span>Upload image</span></button>
                   <button onClick={handleScreenCapture} className="w-full text-left px-3 py-2.5 hover:bg-white/5 flex items-center gap-2">◉ <span>Take Screenshot</span></button>
@@ -1060,6 +1083,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
           <div className="message-list">
             {(() => { try { return getLocalSettings().show_generation_status !== false; } catch { return true; } })() && status && <div className="text-center text-xs text-white/40 py-2 flex justify-center items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> <ThinkingDots text={status.replace(/\.\.\./g, "")} /></div>}
             {!status && (() => { const lastMsg = messages[messages.length - 1]; return lastMsg && lastMsg.role === "assistant" && lastMsg.content === "" && lastMsg.metadata?.isStreamingPlaceholder; })() && <div className="text-center text-xs text-white/30 py-2"><span className="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /></div>}
+            {streaming && streamStartInfo?.path === "image_generation" && !streamingText && <div className="mx-2"><ImageGenerationSkeleton status={status || "Creating your image..."} /></div>}
             {agentSteps.length > 0 && <div className="mx-2 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs"><div className="font-medium text-amber-300">● Autonomous agent — {agentSteps.length} steps</div>{agentSteps.map((s: any, i: number) => <div key={i} className="flex gap-2 mt-1 text-white/70"><span className="text-emerald-400">✓</span> Step {s.step}/{s.max}: {s.tool} — {JSON.stringify(s.args).slice(0, 80)}</div>)}<div className="text-white/30 mt-1 text-[11px]">Showing high-level progress, not chain-of-thought</div></div>}
             {proactive && !streaming && <div className="mx-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs flex justify-between items-center"><span className="text-emerald-200">💡 VISION proactive: You've been idle. Want me to review your workspace for opportunities?</span><div className="flex gap-2"><button onClick={() => { setProactive(false); setInput("Review my workspace and suggest improvements"); }} className="px-3 py-1 rounded-full bg-white text-black text-xs">Review</button><button onClick={() => setProactive(false)} className="text-white/50">Dismiss</button></div></div>}
             {voice.isListening && <div className="flex justify-center py-2"><VoiceWaveform active /></div>}
@@ -1101,10 +1125,10 @@ export default function ChatView({ conversationId }: { conversationId?: string }
           </div>
         )}
         <div className="composer">
-          <div className="relative">
-            <button onClick={() => setShowAttachMenu(v => !v)} className="h-9 w-9 rounded-full grid place-items-center shrink-0 transition text-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} onMouseEnter={e=> e.currentTarget.style.background="var(--surface-hover)"} onMouseLeave={e=> e.currentTarget.style.background="var(--surface)"} aria-label="Attach">＋</button>
+            <div className="relative" style={{ overflow: "visible" }}>
+              <button onClick={() => setShowAttachMenu(v => !v)} className="h-9 w-9 rounded-full grid place-items-center shrink-0 transition text-sm" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} onMouseEnter={e=> e.currentTarget.style.background="var(--surface-hover)"} onMouseLeave={e=> e.currentTarget.style.background="var(--surface)"} aria-label="Attach">＋</button>
             {showAttachMenu && (
-              <div className="absolute bottom-12 left-0 bg-[#111113] border border-white/10 rounded-2xl shadow-xl overflow-hidden z-20 w-[280px] text-sm">
+                <div className="absolute bottom-12 left-0 bg-[#111113] border border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 w-[280px] text-sm" style={{ maxWidth: "280px" }}>
                 <div className="px-3 py-2 text-[10px] tracking-widest" style={{color:"var(--muted)"}}>ATTACH</div>
                 <button onClick={() => { setShowAttachMenu(false); fileRef.current?.click(); }} className="w-full text-left px-3 py-2.5 hover:bg-white/5 flex items-center gap-2">📷 <span>Upload image</span></button>
                 <button onClick={handleScreenCapture} className="w-full text-left px-3 py-2.5 hover:bg-white/5 flex items-center gap-2">◉ <span>Take Screenshot</span></button>

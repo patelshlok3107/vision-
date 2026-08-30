@@ -150,7 +150,7 @@ export function clearGuestHistory() {
   localStorage.removeItem("vision_guest_history");
 }
 
-export async function streamChat(message: string, conversation_id: string | null, onToken: (t: string) => void, onStatus?: (s: string) => void, attachment_ids?: string[], signal?: AbortSignal, opts?: { mode?: string, memory_enabled?: boolean, onAgentStep?: (step: any) => void, onDiagnostics?: (diag: any) => void, onStreamStart?: (info: any) => void, onSources?: (sources: any[]) => void, temperature?: number, max_tokens?: number, context_length?: number, streaming?: boolean, use_history_context?: boolean, chat_history_enabled?: boolean, analytics?: boolean, personalization?: boolean, fast_mode?: boolean, use_routing?: boolean, keep_warm?: boolean }) {
+export async function streamChat(message: string, conversation_id: string | null, onToken: (t: string) => void, onStatus?: (s: string) => void, attachment_ids?: string[], signal?: AbortSignal, opts?: { mode?: string, memory_enabled?: boolean, onAgentStep?: (step: any) => void, onDiagnostics?: (diag: any) => void, onStreamStart?: (info: any) => void, onSources?: (sources: any[]) => void, onImage?: (data: any) => void, onImageGenerating?: (data: any) => void, temperature?: number, max_tokens?: number, context_length?: number, streaming?: boolean, use_history_context?: boolean, chat_history_enabled?: boolean, analytics?: boolean, personalization?: boolean, fast_mode?: boolean, use_routing?: boolean, keep_warm?: boolean }) {
   const isGuest = typeof window !== "undefined" && !localStorage.getItem("accessToken") && !localStorage.getItem("access");
   const payload: any = { message, conversation_id, mode: opts?.mode || "auto", memory_enabled: opts?.memory_enabled ?? true };
   // Forward user settings that affect backend behavior
@@ -217,6 +217,9 @@ export async function streamChat(message: string, conversation_id: string | null
       else if (j.type === "agent_step" && opts?.onAgentStep) opts.onAgentStep(j.content);
       else if (j.type === "diagnostics") { if (opts?.onDiagnostics) opts.onDiagnostics(j.content); else console.log("[VISION Diagnostics]", j.content); }
       else if (j.type === "sources" && opts?.onSources) opts.onSources(j.content);
+      else if (j.type === "image" && opts?.onImage) opts.onImage(j.content);
+      else if (j.type === "image_generating" && opts?.onImageGenerating) opts.onImageGenerating(j.content);
+      else if (j.type === "image_generated" && opts?.onImage) opts.onImage(j.content);
       else if (j.type === "done" && j.conversation_id) convId = j.conversation_id;
       else if (j.type === "error") throw new Error(j.content);
     }

@@ -281,6 +281,7 @@ button, a, [role="button"] { min-height: 0; }
     padding-bottom: max(16px, env(safe-area-inset-bottom));
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
+    overflow: visible;
   }
   @media (max-width: 768px) {
     .composer-wrapper { padding: 12px 12px max(12px, env(safe-area-inset-bottom)); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
@@ -298,6 +299,8 @@ button, a, [role="button"] { min-height: 0; }
     min-height: 52px;
     box-shadow: var(--shadow-soft);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    overflow: visible;
+    position: relative;
   }
   .composer:has(textarea:focus) {
     border-color: var(--border-strong);
@@ -404,13 +407,30 @@ button, a, [role="button"] { min-height: 0; }
 @keyframes drawerIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .mobile-drawer { animation: none; } }
 
-/* Prevent horizontal overflow on all containers */
-* { max-width: 100%; }
-img, video, pre, code { max-width: 100%; }
-pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+/* Prevent horizontal overflow - targeted, not global * */
+img, video { max-width: 100%; }
+pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; max-width: 100%; }
+code { max-width: 100%; overflow-wrap: anywhere; }
 
 /* Responsive text overflow guard */
 .chat-area, .messages-container, .chat-content { min-width: 0; overflow-x: hidden; }
+
+/* Markdown content - never overflow the message container */
+.markdown-content { max-width: 100%; overflow: hidden; }
+.markdown-content p, .markdown-content li, .markdown-content td, .markdown-content th { overflow-wrap: anywhere; word-break: break-word; }
+.markdown-content table { table-layout: auto; }
+.markdown-content pre { max-width: 100%; overflow-x: auto; }
+.markdown-content pre code { white-space: pre; word-break: normal; overflow-wrap: normal; }
+
+/* Message containers - never allow content to overflow */
+.message-assistant, .message-user { overflow: hidden; min-width: 0; word-break: break-word; overflow-wrap: anywhere; }
+
+/* Table responsive - horizontal scroll inside container, not page */
+.markdown-content div:has(> table) { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+@media (max-width: 640px) {
+  .markdown-content table { min-width: 480px; }
+  .markdown-content th, .markdown-content td { min-width: 110px; font-size: 13px; padding: 8px 10px; }
+}
 
 /* Mobile chat tweaks */
 @media (max-width: 768px) {
@@ -454,3 +474,13 @@ button:hover { transition: all 0.15s ease; }
 /* Loading states */
 .skeleton { background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%); background-size: 200% 100%; animation: shimmer 1.2s ease infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Image generation skeleton shimmer */
+@keyframes shimmerSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.image-skeleton { position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--border); }
+.image-skeleton::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent); animation: shimmerSlide 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .image-skeleton::after { animation: none; } }
+
+/* Generated image card */
+.generated-image-card { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); max-width: 100%; }
+.generated-image-card img { display: block; width: 100%; height: auto; max-width: 100%; object-fit: cover; }
